@@ -1,0 +1,12 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+inbox.json
+*.egg-info/
+dist/
+build/
+.idea/
+.vscode/
