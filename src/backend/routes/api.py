@@ -6,11 +6,27 @@ import re
 import random
 import string
 import time
+import urllib.request
 
 bp = Blueprint('api', __name__)
 
 # Store last webhook payload for debugging
 _last_webhook_payload = {}
+
+def fetch_email_content(email_id):
+    """Fetch full email content from Resend API by email_id"""
+    try:
+        url = f"https://api.resend.com/emails/{email_id}"
+        req = urllib.request.Request(url)
+        req.add_header("Authorization", f"Bearer {config.RESEND_API_KEY}")
+        req.add_header("Content-Type", "application/json")
+        
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+            return data
+    except Exception as e:
+        print(f"Error fetching email {email_id}: {e}")
+        return None
 
 # Make a random email containing 6 characters
 @bp.route('/get_random_address')
@@ -59,21 +75,25 @@ def resend_webhook():
             from_addr = data.get('from', 'unknown@unknown.com')
             to_list = data.get('to', [])
             subject = data.get('subject', 'No Subject')
-            
-            # Try multiple possible field names for body
-            text_body = data.get('text', '') or data.get('body', '') or data.get('plain', '') or ''
-            html_body = data.get('html', '') or ''
+            email_id = data.get('email_id', '')
 
-            # Use HTML body if available, otherwise wrap text in HTML
-            if html_body:
-                body = html_body
-                content_type = 'HTML'
-            elif text_body:
-                body = f'<pre style="font-family:sans-serif;white-space:pre-wrap;word-wrap:break-word;">{text_body}</pre>'
-                content_type = 'HTML'
-            else:
-                body = '<p style="color:#999;">No content</p>'
-                content_type = 'HTML'
+            # Fetch full email content from Resend API
+            body = ''
+            content_type = 'HTML'
+            
+            if email_id:
+                full_email = fetch_email_content(email_id)
+                if full_email:
+                    html_body = full_email.get('html', '') or ''
+                    text_body = full_email.get('text', '') or full_email.get('body', '') or ''
+                    
+                    if html_body:
+                        body = html_body
+                    elif text_body:
+                        body = f'<pre style="font-family:sans-serif;white-space:pre-wrap;word-wrap:break-word;">{text_body}</pre>'
+            
+            if not body:
+                body = '<p style="color:#999;">Could not load email content</p>'
 
             current_timestamp = int(time.time())
 
