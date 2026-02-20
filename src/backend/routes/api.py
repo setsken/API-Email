@@ -1,12 +1,16 @@
 from flask import Blueprint, render_template, request, jsonify
 from .. import inbox_handler
 import config
+import json
 import re
 import random
 import string
 import time
 
 bp = Blueprint('api', __name__)
+
+# Store last webhook payload for debugging
+_last_webhook_payload = {}
 
 # Make a random email containing 6 characters
 @bp.route('/get_random_address')
@@ -41,6 +45,11 @@ def resend_webhook():
         if not payload:
             return jsonify({"error": "Empty payload"}), 400
 
+        # Log the full payload for debugging
+        global _last_webhook_payload
+        _last_webhook_payload = payload
+        print(f"Webhook received: {json.dumps(payload, indent=2, default=str)[:2000]}")
+
         event_type = payload.get('type', '')
 
         # Handle email.received event
@@ -50,12 +59,21 @@ def resend_webhook():
             from_addr = data.get('from', 'unknown@unknown.com')
             to_list = data.get('to', [])
             subject = data.get('subject', 'No Subject')
-            text_body = data.get('text', '')
-            html_body = data.get('html', '')
+            
+            # Try multiple possible field names for body
+            text_body = data.get('text', '') or data.get('body', '') or data.get('plain', '') or ''
+            html_body = data.get('html', '') or ''
 
-            # Use HTML body if available, otherwise text
-            body = html_body if html_body else text_body
-            content_type = 'HTML' if html_body else 'Text'
+            # Use HTML body if available, otherwise wrap text in HTML
+            if html_body:
+                body = html_body
+                content_type = 'HTML'
+            elif text_body:
+                body = f'<pre style="font-family:sans-serif;white-space:pre-wrap;word-wrap:break-word;">{text_body}</pre>'
+                content_type = 'HTML'
+            else:
+                body = '<p style="color:#999;">No content</p>'
+                content_type = 'HTML'
 
             current_timestamp = int(time.time())
 
@@ -77,6 +95,7 @@ def resend_webhook():
                 }
 
                 inbox_handler.recv_email(email_json)
+                print(f"Email saved: {from_addr} -> {to_addr}, body length: {len(body)}")
 
             return jsonify({"status": "ok"}), 200
 
@@ -85,3 +104,8 @@ def resend_webhook():
     except Exception as e:
         print(f"Webhook error: {e}")
         return jsonify({"error": str(e)}), 500
+
+# Debug: view raw webhook log
+@bp.route('/debug/last_webhook')
+def debug_last_webhook():
+    return jsonify(_last_webhook_payload)
