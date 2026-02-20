@@ -124,9 +124,25 @@ def resend_webhook():
                     _log(f"HTML len: {len(html_body)}, Text len: {len(text_body)}")
                     
                     if html_body:
-                        body = html_body
+                        # Wrap HTML emails with dark background + white text defaults
+                        body = (
+                            '<div style="background:#1a1a2e;color:#e0e0e0;padding:16px;font-family:sans-serif;">'
+                            + html_body
+                            + '</div>'
+                        )
                     elif text_body:
-                        body = f'<pre style="font-family:sans-serif;white-space:pre-wrap;word-wrap:break-word;">{text_body}</pre>'
+                        # Convert URLs to clickable links
+                        linked_text = re.sub(
+                            r'(https?://[^\s<>"\']+)',
+                            r'<a href="\1" target="_blank" style="color:#58a6ff;word-break:break-all;">\1</a>',
+                            text_body
+                        )
+                        body = (
+                            '<pre style="font-family:sans-serif;white-space:pre-wrap;word-wrap:break-word;'
+                            'background:#1a1a2e;color:#e0e0e0;padding:16px;margin:0;">'
+                            + linked_text
+                            + '</pre>'
+                        )
             
             if not body:
                 body = '<p style="color:#999;">Could not load email content</p>'
