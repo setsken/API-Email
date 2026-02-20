@@ -315,6 +315,40 @@ body {
     to { transform: rotate(360deg); }
 }
 
+/* toast notification */
+.toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #1e1b21;
+    border: 1px solid #4ade80;
+    color: #f7ebff;
+    padding: 12px 20px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-family);
+    font-size: 0.9rem;
+    z-index: 9999;
+    animation: toastIn 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.toast-hide {
+    animation: toastOut 0.3s ease forwards;
+}
+
+@keyframes toastIn {
+    from { opacity: 0; transform: translateX(40px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastOut {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(40px); }
+}
+
 /* mobile design */
 @media (max-width: 600px) {
     /* make buttons turn into icons */

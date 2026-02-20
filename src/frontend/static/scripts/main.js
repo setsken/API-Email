@@ -26,9 +26,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // copy email to clipboard
     function copyToClipboard() {
-        emailInput.select();
-        document.execCommand('copy');
-        alert('Copied!');
+        navigator.clipboard.writeText(emailInput.value).then(() => {
+            showToast('Copied!');
+        });
+    }
+
+    // show a toast notification
+    function showToast(message) {
+        const existing = document.querySelector('.toast');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span>${message}</span>`;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('toast-hide');
+            setTimeout(() => toast.remove(), 300);
+        }, 2000);
     }
 
     // generate random email and assign it as the current email
