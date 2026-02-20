@@ -1,0 +1,20 @@
+[20:17:40] Webhook received: {
+  "type": "email.received",
+  "data": {
+    "from": "test@example.com",
+    "to": [
+      "testbox@ofstats.pro"
+    ],
+    "subject": "Test Email",
+    "email_id": "c0830e53-d420-48a1-ae3a-a084fb6f851f"
+  }
+}
+[20:17:40] Fetching email content for: c0830e53-d420-48a1-ae3a-a084fb6f851f
+[20:17:40] fetch_email_content called with id=c0830e53-d420-48a1-ae3a-a084fb6f851f
+[20:17:40] Attempt 1: GET https://api.resend.com/emails/receiving/c0830e53-d420-48a1-ae3a-a084fb6f851f
+[20:17:41] Response status: 200
+[20:17:41] Resend API success, keys: ['object', 'id', 'to', 'from', 'created_at', 'subject', 'message_id', 'bcc', 'cc', 'reply_to', 'html', 'text', 'headers', 'raw', 'attachments']
+[20:17:41] html length: 0, text length: 393
+[20:17:41] Full email result: True
+[20:17:41] HTML len: 0, Text len: 393
+[20:17:41] Email saved: test@example.com -> testbox@ofstats.pro, body length: 478

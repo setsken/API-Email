@@ -6,27 +6,60 @@ import re
 import random
 import string
 import time
-import urllib.request
+import sys
+import requests as http_requests
+import logging
 
 bp = Blueprint('api', __name__)
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG, stream=sys.stderr, force=True)
 
 # Store last webhook payload for debugging
 _last_webhook_payload = {}
 
-def fetch_email_content(email_id):
-    """Fetch full email content from Resend API by email_id"""
+# Debug log file
+DEBUG_LOG = "debug_api.log"
+
+def _log(msg):
+    """Write debug message to file + stderr"""
+    line = f"[{time.strftime('%H:%M:%S')}] {msg}"
+    logger.info(line)
     try:
-        url = f"https://api.resend.com/emails/{email_id}"
-        req = urllib.request.Request(url)
-        req.add_header("Authorization", f"Bearer {config.RESEND_API_KEY}")
-        req.add_header("Content-Type", "application/json")
-        
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode())
-            return data
-    except Exception as e:
-        print(f"Error fetching email {email_id}: {e}")
-        return None
+        with open(DEBUG_LOG, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except:
+        pass
+
+def fetch_email_content(email_id, retries=3):
+    """Fetch full email content from Resend Receiving API by email_id"""
+    _log(f"fetch_email_content called with id={email_id}")
+    for attempt in range(retries):
+        try:
+            url = f"https://api.resend.com/emails/receiving/{email_id}"
+            headers = {
+                "Authorization": f"Bearer {config.RESEND_API_KEY}",
+                "Content-Type": "application/json",
+                "User-Agent": "Maildrop/1.0",
+            }
+            _log(f"Attempt {attempt+1}: GET {url}")
+            resp = http_requests.get(url, headers=headers, timeout=15)
+            _log(f"Response status: {resp.status_code}")
+            
+            if resp.status_code == 200:
+                data = resp.json()
+                _log(f"Resend API success, keys: {list(data.keys())}")
+                _log(f"html length: {len(data.get('html') or '')}, text length: {len(data.get('text') or '')}")
+                return data
+            else:
+                _log(f"Resend API error: {resp.status_code} - {resp.text[:300]}")
+                if attempt < retries - 1:
+                    time.sleep(2)
+        except Exception as e:
+            _log(f"Resend API exception (attempt {attempt+1}): {type(e).__name__}: {e}")
+            if attempt < retries - 1:
+                time.sleep(2)
+    _log("fetch_email_content returning None after all retries")
+    return None
 
 # Make a random email containing 6 characters
 @bp.route('/get_random_address')
@@ -64,7 +97,7 @@ def resend_webhook():
         # Log the full payload for debugging
         global _last_webhook_payload
         _last_webhook_payload = payload
-        print(f"Webhook received: {json.dumps(payload, indent=2, default=str)[:2000]}")
+        _log(f"Webhook received: {json.dumps(payload, indent=2, default=str)[:2000]}")
 
         event_type = payload.get('type', '')
 
@@ -82,10 +115,13 @@ def resend_webhook():
             content_type = 'HTML'
             
             if email_id:
+                _log(f"Fetching email content for: {email_id}")
                 full_email = fetch_email_content(email_id)
+                _log(f"Full email result: {full_email is not None}")
                 if full_email:
-                    html_body = full_email.get('html', '') or ''
-                    text_body = full_email.get('text', '') or full_email.get('body', '') or ''
+                    html_body = full_email.get('html') or ''
+                    text_body = full_email.get('text') or ''
+                    _log(f"HTML len: {len(html_body)}, Text len: {len(text_body)}")
                     
                     if html_body:
                         body = html_body
@@ -115,17 +151,27 @@ def resend_webhook():
                 }
 
                 inbox_handler.recv_email(email_json)
-                print(f"Email saved: {from_addr} -> {to_addr}, body length: {len(body)}")
+                _log(f"Email saved: {from_addr} -> {to_addr}, body length: {len(body)}")
 
             return jsonify({"status": "ok"}), 200
 
         return jsonify({"status": "ignored"}), 200
 
     except Exception as e:
-        print(f"Webhook error: {e}")
+        _log(f"Webhook error: {type(e).__name__}: {e}")
+        import traceback
+        _log(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
 # Debug: view raw webhook log
 @bp.route('/debug/last_webhook')
 def debug_last_webhook():
     return jsonify(_last_webhook_payload)
+
+# Debug: test fetching email content by ID
+@bp.route('/debug/fetch_email/<email_id>')
+def debug_fetch_email(email_id):
+    result = fetch_email_content(email_id, retries=1)
+    if result:
+        return jsonify(result)
+    return jsonify({"error": "Could not fetch email"}), 500
