@@ -18,7 +18,7 @@ DOMAIN = os.getenv("DOMAIN", "ofstats.pro")
 # Multiple domains support: comma-separated list in env var
 # Example: DOMAINS=ofstats.pro,mymail.xyz,tempbox.site
 # If not set, falls back to single DOMAIN
-_domains_str = os.getenv("DOMAINS", "")
+_domains_str = os.getenv("DOMAINS", "").strip().strip('"').strip("'")
 DOMAINS = [d.strip() for d in _domains_str.split(",") if d.strip()] if _domains_str else [DOMAIN]
 
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
