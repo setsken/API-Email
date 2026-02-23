@@ -165,6 +165,34 @@ body {
     transform: translateY(-2px);
 }
 
+/* domain selector dropdown */
+.domain-select {
+    padding: 0.75rem 0.75rem;
+    border: none;
+    border-radius: var(--content-radius);
+    font-family: var(--font-family);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    transition: background-color 0.2s ease;
+    max-width: 200px;
+}
+
+.domain-select:hover {
+    background-color: var(--secondary-hover-color);
+}
+
+.domain-select:focus {
+    outline: 1px solid var(--primary-color);
+}
+
+/* hide domain select when only one domain */
+.domain-select.single-domain {
+    display: none;
+}
+
 /* inbox display box */
 .inbox-section {
     background-color: var(--surface-color);

@@ -29,6 +29,13 @@ async function getDomain() {
     return await response.json();
 }
 
+// get all available domains from the server
+async function getDomains() {
+    const response = await fetch('/get_domains');
+    
+    return await response.json();
+}
+
 // send an email
 async function sendEmail(fromAddress, toAddress, subject, body) {
     const response = await fetch('/send_email', {

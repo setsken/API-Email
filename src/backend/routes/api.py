@@ -61,16 +61,22 @@ def fetch_email_content(email_id, retries=3):
     _log("fetch_email_content returning None after all retries")
     return None
 
-# Make a random email containing 6 characters
+# Make a random email containing 6 characters with a random domain
 @bp.route('/get_random_address')
 def get_random_address():
     random_string = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
-    return jsonify({"address": f"{random_string}@{config.DOMAIN}"}), 200
+    domain = random.choice(config.DOMAINS)
+    return jsonify({"address": f"{random_string}@{domain}"}), 200
 
-# Get an email domain
+# Get the primary email domain
 @bp.route('/get_domain')
 def get_domain():
-    return jsonify({"domain": config.DOMAIN}), 200
+    return jsonify({"domain": config.DOMAINS[0]}), 200
+
+# Get all available domains
+@bp.route('/get_domains')
+def get_domains():
+    return jsonify({"domains": config.DOMAINS}), 200
 
 # This route returns the contents of an inbox
 @bp.route('/get_inbox')
@@ -153,7 +159,10 @@ def resend_webhook():
             for to_addr in to_list:
                 to_addr = to_addr.lower().strip()
 
-                if not to_addr.endswith(f'@{config.DOMAIN}'):
+                # Accept email for any configured domain
+                addr_domain = to_addr.split('@')[-1] if '@' in to_addr else ''
+                if addr_domain not in config.DOMAINS:
+                    _log(f"Skipping {to_addr} — domain {addr_domain} not in {config.DOMAINS}")
                     continue
 
                 email_json = {
