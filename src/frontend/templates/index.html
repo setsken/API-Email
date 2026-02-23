@@ -24,23 +24,23 @@
             <p>A simple self hostable email inbox.</p>
         </header>
         <section class="email-panel">
-            <div class="email-display">
-                <input type="text" id="email-input" value="waiting to be assigned email" readonly>
+            <div class="email-compose">
+                <input type="text" id="email-name" placeholder="username" spellcheck="false">
+                <select id="domain-select" class="domain-select" title="Choose domain">
+                </select>
             </div>
             <div class="action-buttons">
                 <button id="random-btn" class="btn btn-primary">
                     <img src="{{ url_for('static', filename='resources/random-icon.svg') }}" alt="Random Icon">
-                    <span class="button-text">Generate Random</span>
+                    <span class="button-text">Random Name</span>
                 </button>
-                <select id="domain-select" class="domain-select" title="Choose domain">
-                </select>
                 <button id="copy-btn" class="btn btn-secondary">
                     <img src="{{ url_for('static', filename='resources/copy-icon.svg') }}" alt="Copy Icon">
                     <span class="button-text">Copy Email</span>
                 </button>
-                <button id="custom-btn" class="btn btn-secondary">
-                    <img src="{{ url_for('static', filename='resources/edit-icon.svg') }}" alt="Edit Icon">
-                    <span class="button-text">Use Custom</span>
+                <button id="refresh-btn" class="btn btn-secondary" title="Refresh Inbox">
+                    <img src="{{ url_for('static', filename='resources/refresh-icon.svg') }}" alt="Refresh Icon">
+                    <span class="button-text">Refresh</span>
                 </button>
             </div>
         </section>
@@ -48,9 +48,6 @@
         <main class="inbox-section">
             <div class="inbox-header">
                 <h2>Your Inbox</h2>
-                <button id="refresh-btn" title="Refresh Inbox">
-                    <img src="{{ url_for('static', filename='resources/refresh-icon.svg') }}" alt="Refresh Icon">
-                </button>
             </div>
             <ul id="inbox-list"></ul>
             <div id="inbox-placeholder">

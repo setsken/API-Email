@@ -4,14 +4,12 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentInbox = [];
 
     // make element references
-    const emailInput = document.getElementById('email-input');
+    const emailName = document.getElementById('email-name');
     const randomBtn = document.getElementById('random-btn');
-    const customBtn = document.getElementById('custom-btn');
     const refreshBtn = document.getElementById('refresh-btn');
     const copyBtn = document.getElementById('copy-btn');
     const inboxList = document.getElementById('inbox-list');
     const placeholder = document.getElementById('inbox-placeholder');
-    const sendBtn = document.getElementById('send-btn');
     const domainSelect = document.getElementById('domain-select');
 
     // load available domains
@@ -27,11 +25,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 opt.textContent = '@' + d;
                 domainSelect.appendChild(opt);
             });
-            if (availableDomains.length <= 1) {
-                domainSelect.classList.add('single-domain');
-            } else {
-                domainSelect.classList.remove('single-domain');
-            }
+            // Auto-generate a random name on load
+            generateRandomName();
         } catch (e) {
             console.error('Failed to load domains', e);
         }
@@ -40,18 +35,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // add event listeners
     copyBtn.addEventListener('click', copyToClipboard);
-    randomBtn.addEventListener('click', generateRandomEmail);
+    randomBtn.addEventListener('click', generateRandomName);
     refreshBtn.addEventListener('click', fetchInbox);
-    customBtn.addEventListener('click', handleCustomEmail);
-    if (sendBtn) {
-        sendBtn.addEventListener('click', sendButtonClicked); 
-    }
+
+    // When user edits name or changes domain, update current email
+    emailName.addEventListener('input', onEmailChanged);
+    domainSelect.addEventListener('change', onEmailChanged);
 
     // function defnitions
 
     // copy email to clipboard
     function copyToClipboard() {
-        navigator.clipboard.writeText(emailInput.value).then(() => {
+        const fullEmail = getFullEmail();
+        if (!fullEmail) return;
+        navigator.clipboard.writeText(fullEmail).then(() => {
             const icon = copyBtn.querySelector('img');
             const text = copyBtn.querySelector('.button-text');
             const originalIcon = icon.src;
@@ -70,28 +67,32 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // generate random email with selected domain
-    async function generateRandomEmail() {
-        const selectedDomain = domainSelect.value;
-        if (selectedDomain) {
-            // Generate locally with the selected domain
-            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-            let name = '';
-            for (let i = 0; i < 6; i++) {
-                name += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            updateEmail(name + '@' + selectedDomain);
-        } else {
-            // Fallback: let server pick
-            const newAddress = await getRandomAddress();
-            updateEmail(newAddress.address);
+    // get full email address from inputs
+    function getFullEmail() {
+        const name = emailName.value.trim();
+        const domain = domainSelect.value;
+        if (!name || !domain) return '';
+        return name + '@' + domain;
+    }
+
+    // called when name or domain changes
+    function onEmailChanged() {
+        const full = getFullEmail();
+        if (full && full !== currentEmail) {
+            currentEmail = full;
+            fetchInbox();
         }
     }
 
-    // update the current email
-    function updateEmail(email) {
-        currentEmail = email;
-        emailInput.value = email;
+    // generate random name (keeps selected domain)
+    function generateRandomName() {
+        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+        let name = '';
+        for (let i = 0; i < 6; i++) {
+            name += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        emailName.value = name;
+        currentEmail = getFullEmail();
         fetchInbox();
     }
     
@@ -195,25 +196,6 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             placeholder.style.display = 'block';
         }
-    }
-
-    // use a custom email address
-    async function handleCustomEmail() {
-        var customEmail = prompt("Enter your custom email name (without @domain):");
-        if (!customEmail) return;
-        
-        // Remove @ and domain if user typed full address
-        if (customEmail.includes("@")) {
-            customEmail = customEmail.split("@")[0];
-        }
-
-        const selectedDomain = domainSelect.value || availableDomains[0];
-        if (!selectedDomain) {
-            alert("No domains available");
-            return;
-        }
-
-        updateEmail(customEmail + "@" + selectedDomain);
     }
 
     // shows a form to the user

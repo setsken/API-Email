@@ -96,6 +96,57 @@ body {
     border: 1px solid var(--border-color);
 }
 
+/* email compose row: name input + domain dropdown */
+.email-compose {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background-color: var(--input-color);
+    border-radius: var(--content-radius);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.email-compose #email-name {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-color);
+    font-size: 1.1rem;
+    font-family: var(--font-family);
+    padding: 0.85rem 1rem;
+    min-width: 0;
+}
+
+.email-compose #email-name:focus {
+    outline: none;
+}
+
+.email-compose #email-name::placeholder {
+    color: var(--text-dark-color);
+}
+
+.email-compose .domain-select {
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    border: none;
+    border-left: 1px solid var(--border-color);
+    padding: 0.85rem 0.75rem;
+    font-family: var(--font-family);
+    font-size: 1rem;
+    cursor: pointer;
+    min-width: 180px;
+    max-width: 220px;
+}
+
+.email-compose .domain-select:hover {
+    background-color: var(--secondary-hover-color);
+}
+
+.email-compose .domain-select:focus {
+    outline: none;
+}
+
 
 /* current email text */
 #email-input {
@@ -163,34 +214,6 @@ body {
 .btn-secondary:hover {
     background-color: var(--secondary-hover-color);
     transform: translateY(-2px);
-}
-
-/* domain selector dropdown */
-.domain-select {
-    padding: 0.75rem 0.75rem;
-    border: none;
-    border-radius: var(--content-radius);
-    font-family: var(--font-family);
-    font-size: 0.85rem;
-    font-weight: 500;
-    cursor: pointer;
-    background-color: var(--secondary-color);
-    color: var(--text-color);
-    transition: background-color 0.2s ease;
-    max-width: 200px;
-}
-
-.domain-select:hover {
-    background-color: var(--secondary-hover-color);
-}
-
-.domain-select:focus {
-    outline: 1px solid var(--primary-color);
-}
-
-/* hide domain select when only one domain */
-.domain-select.single-domain {
-    display: none;
 }
 
 /* inbox display box */
@@ -364,5 +387,16 @@ body {
 
     .action-buttons {
         justify-content: center;
+    }
+
+    .email-compose {
+        flex-direction: column;
+    }
+
+    .email-compose .domain-select {
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+        min-width: 100%;
+        max-width: 100%;
     }
 }
