@@ -86,12 +86,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // generate random name (keeps selected domain)
     function generateRandomName() {
-        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-        let name = '';
-        for (let i = 0; i < 6; i++) {
-            name += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        emailName.value = name;
+        emailName.value = NicknameEngine.generate();
         currentEmail = getFullEmail();
         fetchInbox();
     }
