@@ -9,6 +9,7 @@ import time
 import sys
 import requests as http_requests
 import logging
+import threading
 
 bp = Blueprint('api', __name__)
 logger = logging.getLogger(__name__)
@@ -91,7 +92,95 @@ def get_inbox():
     address_inbox = inbox.get(addr, [])
     return jsonify(address_inbox), 200
 
-# Resend Inbound Webhook — receives emails from Resend
+# Builds and saves the stored records for one received email.
+# Runs in a background thread so the webhook can return 200 immediately —
+# fetching the body from Resend can take tens of seconds and would otherwise
+# block the whole server.
+def process_received_email(data):
+    from_addr = data.get('from', 'unknown@unknown.com')
+    to_list = data.get('to', [])
+    subject = data.get('subject', 'No Subject')
+    email_id = data.get('email_id', '')
+
+    # Work out the accepted recipients first, so we never fetch a body we drop
+    recipients = []
+    for to_addr in to_list:
+        to_addr = to_addr.lower().strip()
+
+        # Accept email for any configured domain
+        addr_domain = to_addr.split('@')[-1] if '@' in to_addr else ''
+        if addr_domain not in config.DOMAINS:
+            _log(f"Skipping {to_addr} - domain {addr_domain} not in {config.DOMAINS}")
+            continue
+
+        recipients.append(to_addr)
+
+    if not recipients:
+        return
+
+    # Fetch full email content from Resend API
+    body = ''
+    content_type = 'HTML'
+
+    if email_id:
+        _log(f"Fetching email content for: {email_id}")
+        full_email = fetch_email_content(email_id)
+        _log(f"Full email result: {full_email is not None}")
+        if full_email:
+            html_body = full_email.get('html') or ''
+            text_body = full_email.get('text') or ''
+            _log(f"HTML len: {len(html_body)}, Text len: {len(text_body)}")
+
+            if html_body:
+                # Wrap HTML emails with dark background + white text defaults
+                body = (
+                    '<div style="background:#1a1a2e;color:#e0e0e0;padding:16px;font-family:sans-serif;">'
+                    + html_body
+                    + '</div>'
+                )
+            elif text_body:
+                # Convert URLs to clickable links
+                linked_text = re.sub(
+                    r'(https?://[^\s<>"\']+)',
+                    r'<a href="\1" target="_blank" style="color:#58a6ff;word-break:break-all;">\1</a>',
+                    text_body
+                )
+                body = (
+                    '<pre style="font-family:sans-serif;white-space:pre-wrap;word-wrap:break-word;'
+                    'background:#1a1a2e;color:#e0e0e0;padding:16px;margin:0;">'
+                    + linked_text
+                    + '</pre>'
+                )
+
+    if not body:
+        body = '<p style="color:#999;">Could not load email content</p>'
+
+    current_timestamp = int(time.time())
+
+    for to_addr in recipients:
+        email_json = {
+            "From": from_addr,
+            "To": to_addr,
+            "Subject": subject,
+            "Timestamp": current_timestamp,
+            "Sent": time.strftime("%b %d at %H:%M:%S", time.gmtime(current_timestamp)),
+            "Body": body,
+            "ContentType": content_type
+        }
+
+        inbox_handler.recv_email(email_json)
+        _log(f"Email saved: {from_addr} -> {to_addr}, body length: {len(body)}")
+
+# Wrapper so a failure in the background thread is logged, not swallowed
+def _run_processing(data):
+    try:
+        process_received_email(data)
+    except Exception as e:
+        _log(f"Background processing error: {type(e).__name__}: {e}")
+        import traceback
+        _log(traceback.format_exc())
+
+# Resend Inbound Webhook - receives emails from Resend
 @bp.route('/webhook/resend', methods=['POST'])
 def resend_webhook():
     try:
@@ -110,75 +199,8 @@ def resend_webhook():
         # Handle email.received event
         if event_type == 'email.received':
             data = payload.get('data', {})
-
-            from_addr = data.get('from', 'unknown@unknown.com')
-            to_list = data.get('to', [])
-            subject = data.get('subject', 'No Subject')
-            email_id = data.get('email_id', '')
-
-            # Fetch full email content from Resend API
-            body = ''
-            content_type = 'HTML'
-            
-            if email_id:
-                _log(f"Fetching email content for: {email_id}")
-                full_email = fetch_email_content(email_id)
-                _log(f"Full email result: {full_email is not None}")
-                if full_email:
-                    html_body = full_email.get('html') or ''
-                    text_body = full_email.get('text') or ''
-                    _log(f"HTML len: {len(html_body)}, Text len: {len(text_body)}")
-                    
-                    if html_body:
-                        # Wrap HTML emails with dark background + white text defaults
-                        body = (
-                            '<div style="background:#1a1a2e;color:#e0e0e0;padding:16px;font-family:sans-serif;">'
-                            + html_body
-                            + '</div>'
-                        )
-                    elif text_body:
-                        # Convert URLs to clickable links
-                        linked_text = re.sub(
-                            r'(https?://[^\s<>"\']+)',
-                            r'<a href="\1" target="_blank" style="color:#58a6ff;word-break:break-all;">\1</a>',
-                            text_body
-                        )
-                        body = (
-                            '<pre style="font-family:sans-serif;white-space:pre-wrap;word-wrap:break-word;'
-                            'background:#1a1a2e;color:#e0e0e0;padding:16px;margin:0;">'
-                            + linked_text
-                            + '</pre>'
-                        )
-            
-            if not body:
-                body = '<p style="color:#999;">Could not load email content</p>'
-
-            current_timestamp = int(time.time())
-
-            # Process each recipient
-            for to_addr in to_list:
-                to_addr = to_addr.lower().strip()
-
-                # Accept email for any configured domain
-                addr_domain = to_addr.split('@')[-1] if '@' in to_addr else ''
-                if addr_domain not in config.DOMAINS:
-                    _log(f"Skipping {to_addr} — domain {addr_domain} not in {config.DOMAINS}")
-                    continue
-
-                email_json = {
-                    "From": from_addr,
-                    "To": to_addr,
-                    "Subject": subject,
-                    "Timestamp": current_timestamp,
-                    "Sent": time.strftime("%b %d at %H:%M:%S", time.gmtime(current_timestamp)),
-                    "Body": body,
-                    "ContentType": content_type
-                }
-
-                inbox_handler.recv_email(email_json)
-                _log(f"Email saved: {from_addr} -> {to_addr}, body length: {len(body)}")
-
-            return jsonify({"status": "ok"}), 200
+            threading.Thread(target=_run_processing, args=(data,), daemon=True).start()
+            return jsonify({"status": "accepted"}), 200
 
         return jsonify({"status": "ignored"}), 200
 

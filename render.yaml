@@ -3,7 +3,7 @@ services:
     name: maildrop
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --bind 0.0.0.0:$PORT src.backend.flask_app:app
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 120 src.backend.flask_app:app
     envVars:
       - key: DOMAIN
         value: ofstats.pro
