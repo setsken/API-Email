@@ -10,4 +10,5 @@ COPY . .
 
 EXPOSE 5000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "8", "--timeout", "120", "src.backend.flask_app:app"]
+# Railway passes the port in $PORT; a shell is needed to expand it
+CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 1 --threads 8 --timeout 120 src.backend.flask_app:app"]

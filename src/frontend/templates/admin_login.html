@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Maildrop — вход</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/forms.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/admin.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='resources/favicon.ico') }}">
+</head>
+<body>
+    <div class="container login-container">
+        <header class="header">
+            <h1>
+                <img src="{{ url_for('static', filename='resources/mail-icon.svg') }}" alt="Mail Icon">
+                admin
+            </h1>
+            <p>Вход в админ-панель</p>
+        </header>
+        <section class="email-panel">
+            {% if not enabled %}
+            <p class="form-error">Админка отключена: задайте переменную окружения ADMIN_PASSWORD.</p>
+            {% else %}
+            <form method="post" action="{{ url_for('admin.login') }}" class="login-form">
+                <input type="password" name="password" class="form-control" placeholder="Пароль" autocomplete="current-password" autofocus required>
+                <button type="submit" class="btn btn-primary">Войти</button>
+            </form>
+            {% if error %}
+            <p class="form-error">{{ error }}</p>
+            {% endif %}
+            {% endif %}
+        </section>
+    </div>
+</body>
+</html>

@@ -169,6 +169,26 @@ Edit .env to change these or set environment variables if you are using docker. 
 | `PROTECTED_ADDRESSES` | A regex for inboxes that require a password.          |
 | `PASSWORD`            | The password for protected inboxes.                   |
 | `DOMAIN`              | The domain to be used for generating email addresses. |
+| `DOMAINS`             | Comma-separated list of domains (overrides `DOMAIN`). |
+| `RESEND_API_KEY`      | Resend API key, used to fetch received email bodies.  |
+| `RESEND_WEBHOOK_SECRET` | Optional. Signing secret of the Resend webhook (`whsec_...`). When set, webhooks without a valid signature are rejected. |
+| `DATA_DIR`            | Folder for `inbox.json` and the admin list. Defaults to the Railway volume (`RAILWAY_VOLUME_MOUNT_PATH`) or the current folder. |
+| `ADMIN_PASSWORD`      | Password for the admin panel at `/admin`. The panel is disabled while it is empty. |
+| `SECRET_KEY`          | Optional. Signs the admin session cookie; derived from `ADMIN_PASSWORD` if not set. |
+
+## Admin panel
+
+Open `/admin` and log in with `ADMIN_PASSWORD`. Add the addresses you want to watch (they must be on one of your `DOMAINS`), and every email sent to them shows up in one feed on that page, refreshed every 5 seconds. One-time codes are detected in the subject and body and shown next to each email; click a code to copy it. Click an address to see only its emails.
+
+The public inbox keeps working as before: watched addresses are just collected in the admin panel as well. The `/debug/*` endpoints also require the admin login.
+
+## Deploying on Railway
+
+1. Create a service from this repository. Railway builds it with the `Dockerfile` (see `railway.json`) and passes the port in `$PORT`.
+2. Attach a volume to the service (for example at `/data`). The app stores its data there through `RAILWAY_VOLUME_MOUNT_PATH`, so the inbox and the admin address list survive redeploys.
+3. Set the variables: `DOMAINS`, `RESEND_API_KEY`, `ADMIN_PASSWORD` (and `PASSWORD` if you use protected inboxes).
+4. In Resend, point the inbound webhook to `https://<your-app>.up.railway.app/webhook/resend`.
+5. Recommended: copy the webhook's signing secret from Resend into `RESEND_WEBHOOK_SECRET`, so nobody else can post fake emails to the webhook.
 
 ## Sending
 Maildrop also supports sending mail as an optional feature. Visit the [Sending Guide](docs/SENDING.md) for instructions.

@@ -1,0 +1,12 @@
+.git
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+inbox.json
+inbox.json.tmp
+admin_addresses.json
+admin_addresses.json.tmp
+debug_api.log
+pictures/

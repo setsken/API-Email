@@ -1,0 +1,222 @@
+/* login page is narrower than the panel */
+.login-container {
+    max-width: 420px;
+}
+
+/* login form: password + button in a row */
+.login-form {
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* error text under forms */
+.form-error {
+    color: #f87171;
+    font-size: 0.9rem;
+}
+
+.form-error:empty {
+    display: none;
+}
+
+/* header with the logout button on the right */
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* section titles */
+.email-panel h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+/* add address form */
+.add-form {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.add-form #add-address {
+    flex: 3;
+}
+
+.add-form #add-note {
+    flex: 2;
+}
+
+.add-form .btn {
+    flex-shrink: 0;
+}
+
+/* empty list / feed text */
+.admin-placeholder {
+    text-align: center;
+    padding: 1.5rem;
+    color: var(--text-dark-color);
+}
+
+.admin-placeholder[hidden] {
+    display: none;
+}
+
+/* watched addresses and the email feed */
+.address-list,
+#feed-list {
+    list-style: none;
+}
+
+.address-item {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.address-item:last-child {
+    border-bottom: none;
+}
+
+.address-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* the address the feed is filtered by */
+.address-item.active {
+    border-left-color: var(--primary-hover-color);
+    background-color: rgba(120, 64, 151, 0.15);
+}
+
+.address-info {
+    min-width: 0;
+}
+
+.address-info .address {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.address-info .note {
+    color: var(--text-dark-color);
+    font-size: 0.85rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* email count badge */
+.address-item .count {
+    min-width: 2rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+/* .btn sets display, which would override the hidden attribute */
+.btn[hidden] {
+    display: none;
+}
+
+/* small square buttons */
+.btn-icon {
+    padding: 0.5rem;
+    justify-content: center;
+    min-width: 2.1rem;
+    line-height: 1;
+}
+
+.btn-remove:hover {
+    background-color: #7f1d1d;
+}
+
+.btn-icon.copied {
+    background-color: rgba(74, 222, 128, 0.25);
+}
+
+/* recipient line in the feed */
+.email-summary .recipient {
+    color: #b98ad6;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* code + time on the right of an email */
+.email-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.4rem;
+}
+
+/* detected one-time code, click to copy */
+.code-chip {
+    font-family: var(--font-family);
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 0.2rem 0.7rem;
+    border: none;
+    border-radius: var(--content-radius);
+    background-color: var(--primary-color);
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.code-chip:hover {
+    background-color: var(--primary-hover-color);
+}
+
+.code-chip.copied {
+    background-color: rgba(74, 222, 128, 0.25);
+    color: #4ade80;
+    letter-spacing: normal;
+    font-size: 0.85rem;
+}
+
+/* email that arrived since the last refresh */
+.email-item.fresh {
+    animation: freshHighlight 3s ease-out;
+}
+
+@keyframes freshHighlight {
+    from { background-color: rgba(120, 64, 151, 0.35); }
+    to { background-color: transparent; }
+}
+
+/* mobile design */
+@media (max-width: 600px) {
+    .add-form,
+    .login-form {
+        flex-direction: column;
+    }
+
+    .add-form .btn,
+    .login-form .btn {
+        justify-content: center;
+    }
+
+    .address-item {
+        gap: 0.5rem;
+        padding: 0.6rem 0.25rem;
+    }
+
+    /* wrap long addresses instead of cutting them off */
+    .address-info .address {
+        white-space: normal;
+        word-break: break-all;
+    }
+}

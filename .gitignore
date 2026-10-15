@@ -12,3 +12,5 @@ build/
 .idea/
 .vscode/
 debug_api.log
+admin_addresses.json
+admin_addresses.json.tmp

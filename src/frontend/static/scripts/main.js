@@ -38,8 +38,13 @@ document.addEventListener("DOMContentLoaded", () => {
     randomBtn.addEventListener('click', generateRandomName);
     refreshBtn.addEventListener('click', fetchInbox);
 
-    // When user edits name or changes domain, update current email
-    emailName.addEventListener('input', onEmailChanged);
+    // When user edits name or changes domain, update current email.
+    // Typing waits for a pause so we don't fetch an inbox on every keystroke
+    let inputTimer = null;
+    emailName.addEventListener('input', () => {
+        clearTimeout(inputTimer);
+        inputTimer = setTimeout(onEmailChanged, 400);
+    });
     domainSelect.addEventListener('change', onEmailChanged);
 
     // function defnitions
@@ -112,49 +117,56 @@ document.addEventListener("DOMContentLoaded", () => {
         const hour = minute * 60;
         const day = hour * 24;
 
+        const plural = (count, unit) => `${count} ${unit}${count === 1 ? '' : 's'} ago`;
+
         if (secondsAgo >= day) {
-            const days = Math.floor(secondsAgo / day);
-            return `${days} days ago`;
+            return plural(Math.floor(secondsAgo / day), 'day');
         } else if (secondsAgo >= hour) {
-            const hours = Math.floor(secondsAgo / hour);
-            return `${hours} hours ago`;
+            return plural(Math.floor(secondsAgo / hour), 'hour');
         } else if (secondsAgo >= minute) {
-            const minutes = Math.floor(secondsAgo / minute);
-            return `${minutes} minutes ago`;
+            return plural(Math.floor(secondsAgo / minute), 'minute');
         } else {
-            return `${secondsAgo} seconds ago`;
+            return plural(secondsAgo, 'second');
         }
     }
 
     // fetch the inbox from the server
     async function fetchInbox() {
-        if (!currentEmail) return;
+        const address = currentEmail;
+        if (!address) return;
 
         refreshBtn.classList.add('loading');
 
-        let password = localStorage.getItem(`${currentEmail}-password`);
-        let newInbox = await getInbox(currentEmail, password);
+        try {
+            let password = localStorage.getItem(`${address}-password`);
+            let newInbox = await getInbox(address, password);
 
-        if (newInbox.error === "Unauthorized") {
-            password = prompt("Enter password:");
-            if (password) {
-                localStorage.setItem(`${currentEmail}-password`, password);
-                newInbox = await getInbox(currentEmail, password);
-                if (newInbox.error === "Unauthorized") {
-                    await generateRandomEmail();
+            if (newInbox.error === "Unauthorized") {
+                password = prompt("Enter password:");
+                if (password) {
+                    localStorage.setItem(`${address}-password`, password);
+                    newInbox = await getInbox(address, password);
                 }
-            } else {
-                await generateRandomEmail();
+                if (newInbox.error === "Unauthorized") {
+                    // no or wrong password: move to a fresh address instead
+                    generateRandomName();
+                    return;
+                }
             }
+
+            // the address changed while this request was running, so the result is stale
+            if (address !== currentEmail) return;
+
+            if (haveInboxesChanged(currentInbox, newInbox)) {
+                renderInbox(newInbox);
+            }
+
+            currentInbox = newInbox;
+        } catch (e) {
+            console.error('Failed to fetch inbox', e);
+        } finally {
+            refreshBtn.classList.remove('loading');
         }
-
-        if (haveInboxesChanged(currentInbox, newInbox)) {
-            renderInbox(newInbox);
-        }
-
-        currentInbox = newInbox;
-
-        refreshBtn.classList.remove('loading');
     }
 
     // render the inbox in the inbox element
@@ -165,18 +177,22 @@ document.addEventListener("DOMContentLoaded", () => {
             inbox.forEach(email => {
                 const emailItem = document.createElement('li');
                 emailItem.className = 'email-item';
+                // the iframe is sandboxed so scripts in an email can't run on this site
                 emailItem.innerHTML = `
                     <div class="email-summary">
                         <div class="email-details">
-                            <div class="sender">${email.From}</div>
-                            <div class="subject">${email.Subject}</div>
+                            <div class="sender"></div>
+                            <div class="subject"></div>
                         </div>
                         <div class="time">${formatTime(email.Timestamp)}</div>
                     </div>
                     <div class="email-body">
-                        <iframe class="email-body-iframe" srcdoc=""></iframe>
+                        <iframe class="email-body-iframe" sandbox="allow-popups allow-popups-to-escape-sandbox" srcdoc=""></iframe>
                     </div>
                 `;
+                // sender and subject come from the email, so set them as text, not html
+                emailItem.querySelector('.sender').textContent = email.From;
+                emailItem.querySelector('.subject').textContent = email.Subject;
                 inboxList.appendChild(emailItem);
 
                 const summary = emailItem.querySelector('.email-summary');
@@ -184,7 +200,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     emailItem.classList.toggle('open');
                     const iframe = emailItem.querySelector('.email-body-iframe');
                     if (emailItem.classList.contains('open')) {
-                        iframe.srcdoc = email.Body;
+                        // links open in a new tab instead of inside the iframe
+                        iframe.srcdoc = '<base target="_blank">' + email.Body;
                     }
                 });
             });
@@ -293,11 +310,6 @@ document.addEventListener("DOMContentLoaded", () => {
         );
     }
 
-    // generate an email when the page loads
-    (async () => {
-        await generateRandomEmail();
-    })();
-
-    // automatic inbox refreshing
+    // automatic inbox refreshing (the first address is generated by loadDomains)
     setInterval(fetchInbox, 5000);
 });

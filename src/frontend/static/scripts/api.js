@@ -6,7 +6,8 @@ async function getInbox(address, password = null) {
         headers["Authorization"] = password;
     }
 
-    const response = await fetch(`/get_inbox?address=${address}`, { headers });
+    // encode so addresses with + or other special characters reach the server intact
+    const response = await fetch(`/get_inbox?address=${encodeURIComponent(address)}`, { headers });
 
     if (response.status === 401) {
         return { error: "Unauthorized" };

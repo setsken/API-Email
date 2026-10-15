@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, jsonify
-from .. import inbox_handler
+from .. import inbox_handler, auth
 import config
 import json
 import re
@@ -7,6 +7,10 @@ import random
 import string
 import time
 import sys
+import os
+import base64
+import hashlib
+import hmac
 import requests as http_requests
 import logging
 import threading
@@ -21,15 +25,51 @@ _last_webhook_payload = {}
 # Debug log file
 DEBUG_LOG = "debug_api.log"
 
+# The log starts over past this size, only recent entries matter for debugging
+DEBUG_LOG_MAX_SIZE = 5 * 1024 * 1024
+
+# How old a signed webhook may be before it is treated as a replay
+WEBHOOK_TOLERANCE_SECONDS = 300
+
 def _log(msg):
     """Write debug message to file + stderr"""
     line = f"[{time.strftime('%H:%M:%S')}] {msg}"
     logger.info(line)
     try:
-        with open(DEBUG_LOG, "a", encoding="utf-8") as f:
+        too_big = os.path.exists(DEBUG_LOG) and os.path.getsize(DEBUG_LOG) > DEBUG_LOG_MAX_SIZE
+        with open(DEBUG_LOG, "w" if too_big else "a", encoding="utf-8") as f:
             f.write(line + "\n")
     except:
         pass
+
+def verify_webhook_signature(raw_body, headers):
+    """Check the Svix signature Resend puts on webhooks.
+    Skipped (always True) while RESEND_WEBHOOK_SECRET is not set."""
+    if not config.RESEND_WEBHOOK_SECRET:
+        return True
+
+    msg_id = headers.get('svix-id', '')
+    timestamp = headers.get('svix-timestamp', '')
+    signatures = headers.get('svix-signature', '')
+    if not (msg_id and timestamp and signatures):
+        return False
+
+    try:
+        if abs(time.time() - int(timestamp)) > WEBHOOK_TOLERANCE_SECONDS:
+            return False
+        key = base64.b64decode(config.RESEND_WEBHOOK_SECRET.removeprefix('whsec_'))
+    except ValueError:
+        return False
+
+    signed_content = f"{msg_id}.{timestamp}.".encode() + raw_body
+    expected = base64.b64encode(hmac.new(key, signed_content, hashlib.sha256).digest()).decode()
+
+    # The header holds space-separated "v1,<signature>" entries, one per active secret
+    for entry in signatures.split():
+        version, _, signature = entry.partition(',')
+        if version == 'v1' and hmac.compare_digest(signature, expected):
+            return True
+    return False
 
 def fetch_email_content(email_id, retries=3):
     """Fetch full email content from Resend Receiving API by email_id"""
@@ -184,7 +224,11 @@ def _run_processing(data):
 @bp.route('/webhook/resend', methods=['POST'])
 def resend_webhook():
     try:
-        payload = request.json
+        if not verify_webhook_signature(request.get_data(), request.headers):
+            _log("Webhook rejected: invalid signature")
+            return jsonify({"error": "Invalid signature"}), 401
+
+        payload = request.get_json(silent=True)
 
         if not payload:
             return jsonify({"error": "Empty payload"}), 400
@@ -210,13 +254,15 @@ def resend_webhook():
         _log(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
-# Debug: view raw webhook log
+# Debug: view raw webhook log (admin only)
 @bp.route('/debug/last_webhook')
+@auth.admin_required
 def debug_last_webhook():
     return jsonify(_last_webhook_payload)
 
-# Debug: test fetching email content by ID
+# Debug: test fetching email content by ID (admin only)
 @bp.route('/debug/fetch_email/<email_id>')
+@auth.admin_required
 def debug_fetch_email(email_id):
     result = fetch_email_content(email_id, retries=1)
     if result:

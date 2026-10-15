@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Maildrop — админка</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/forms.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/admin.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='resources/favicon.ico') }}">
+</head>
+<body>
+    <div class="container">
+        <header class="header admin-header">
+            <h1>
+                <img src="{{ url_for('static', filename='resources/mail-icon.svg') }}" alt="Mail Icon">
+                admin
+            </h1>
+            <form method="post" action="{{ url_for('admin.logout') }}">
+                <button type="submit" class="btn btn-secondary">Выйти</button>
+            </form>
+        </header>
+
+        <section class="email-panel">
+            <h2>Отслеживаемые адреса</h2>
+            <form id="add-form" class="add-form">
+                <input type="text" id="add-address" class="form-control" placeholder="name@{{ domains[0] }}" spellcheck="false" required>
+                <input type="text" id="add-note" class="form-control" placeholder="Заметка (необязательно)" maxlength="100">
+                <button type="submit" class="btn btn-primary">Добавить</button>
+            </form>
+            <p id="add-error" class="form-error"></p>
+            <ul id="address-list" class="address-list"></ul>
+            <p id="address-placeholder" class="admin-placeholder">Список пуст. Добавьте адрес, и все письма на него будут появляться ниже.</p>
+        </section>
+
+        <main class="inbox-section">
+            <div class="inbox-header">
+                <h2>Письма</h2>
+                <button id="filter-reset" class="btn btn-secondary" hidden>Показать все адреса</button>
+            </div>
+            <ul id="feed-list"></ul>
+            <p id="feed-placeholder" class="admin-placeholder"></p>
+        </main>
+    </div>
+    <script src="{{ url_for('static', filename='scripts/admin.js') }}"></script>
+</body>
+</html>
