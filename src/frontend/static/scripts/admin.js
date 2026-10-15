@@ -219,18 +219,29 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // add an address from the form, into the open folder
+    // (an address that is already listed gets moved into it)
     async function onAdd(event) {
         event.preventDefault();
-        addError.textContent = '';
+        showAddMessage('');
 
         try {
-            await api('POST', '/admin/api/addresses', { address: addAddress.value, note: addNote.value, folder: activeFolder });
+            const result = await api('POST', '/admin/api/addresses', { address: addAddress.value, note: addNote.value, folder: activeFolder });
             addAddress.value = '';
             addNote.value = '';
+            if (result.message) showAddMessage(result.message, true);
             await refresh();
         } catch (e) {
-            addError.textContent = e.message;
+            showAddMessage(e.message);
         }
+    }
+
+    // text under the add form: red for errors, green for success
+    let addMessageTimer = null;
+    function showAddMessage(text, success = false) {
+        clearTimeout(addMessageTimer);
+        addError.textContent = text;
+        addError.classList.toggle('form-success', success);
+        if (success) addMessageTimer = setTimeout(() => showAddMessage(''), 4000);
     }
 
     // remove an address from the list
@@ -279,7 +290,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         addressPlaceholder.hidden = visible.length > 0;
         addressPlaceholder.textContent = activeFolder
-            ? 'В папке пока нет адресов. Добавьте адрес здесь или перенесите существующий из «Все адреса».'
+            ? 'В папке пока нет адресов. Добавьте адрес выше: новый или уже существующий, он переедет в эту папку.'
             : 'Список пуст. Добавьте адрес, и все письма на него будут появляться ниже.';
     }
 

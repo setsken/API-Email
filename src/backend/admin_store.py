@@ -44,31 +44,45 @@ def _clean_folder_name(name: str) -> str:
 def _name_taken(state: dict, name: str, except_id: str = None) -> bool:
     return any(f["name"].casefold() == name.casefold() and f["id"] != except_id for f in state["folders"])
 
-# Adds an address to the list, optionally into a folder.
-# Returns an error message, or None on success
+# Adds an address to the list, optionally into a folder. An address that is
+# already listed gets moved into that folder instead.
+# Returns (message, error): message is set when the address was moved
 def add_address(address: str, note: str = "", folder: str = None):
     address = address.strip().lower()
     note = note.strip()[:100]
     folder = folder or None
 
     if not ADDRESS_RE.match(address):
-        return "Некорректный адрес"
+        return None, "Некорректный адрес"
 
     domain = address.split("@")[1]
     if domain not in config.DOMAINS:
-        return f"Домен {domain} не обслуживается. Доступные: {', '.join(config.DOMAINS)}"
+        return None, f"Домен {domain} не обслуживается. Доступные: {', '.join(config.DOMAINS)}"
 
     with _state_lock:
         state = read_state()
-        if any(e["address"] == address for e in state["addresses"]):
-            return "Адрес уже в списке"
-        if folder and not _find_folder(state, folder):
-            return "Папка не найдена"
+        target = _find_folder(state, folder) if folder else None
+        if folder and not target:
+            return None, "Папка не найдена"
+
+        existing = next((e for e in state["addresses"] if e["address"] == address), None)
+        if existing:
+            current = _find_folder(state, existing.get("folder")) if existing.get("folder") else None
+            if not target:
+                return None, "Адрес уже в списке" + (f" (папка «{current['name']}»)" if current else "")
+            if current and current["id"] == target["id"]:
+                return None, "Адрес уже в этой папке"
+
+            existing["folder"] = target["id"]
+            if note:
+                existing["note"] = note
+            _write_state(state)
+            return f"Адрес перенесён в папку «{target['name']}»" + (f" из «{current['name']}»" if current else ""), None
 
         state["addresses"].append({"address": address, "note": note, "added": int(time.time()), "folder": folder})
         _write_state(state)
 
-    return None
+    return None, None
 
 # Removes an address from the list. Returns False if it was not there
 def remove_address(address: str) -> bool:

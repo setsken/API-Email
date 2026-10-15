@@ -78,10 +78,10 @@ def feed():
 @auth.admin_required
 def add_address():
     data = _json_body()
-    error = admin_store.add_address(str(data.get('address', '')), str(data.get('note', '')), data.get('folder') or None)
+    message, error = admin_store.add_address(str(data.get('address', '')), str(data.get('note', '')), data.get('folder') or None)
     if error:
         return jsonify({"error": error}), 400
-    return jsonify({"status": "ok"}), 200
+    return jsonify({"status": "ok", "message": message}), 200
 
 # Moves an address to another folder ({"folder": null} takes it out of folders)
 @bp.route('/api/addresses/<path:address>', methods=['PATCH'])
