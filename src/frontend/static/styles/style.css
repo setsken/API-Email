@@ -48,6 +48,15 @@ body {
 /* header at the top */
 .header {
     text-align: center;
+    position: relative;
+}
+
+/* admin panel link in the top right corner of the header */
+.admin-link {
+    position: absolute;
+    top: 0.5rem;
+    right: 0;
+    text-decoration: none;
 }
 
 /* title text */
@@ -387,6 +396,11 @@ body {
 
     .action-buttons {
         justify-content: center;
+    }
+
+    /* icon only, so it doesn't run into the title */
+    .admin-link {
+        padding: 0.5rem;
     }
 
     .email-compose {
