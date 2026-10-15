@@ -22,8 +22,16 @@
             </form>
         </header>
 
+        <nav id="folder-bar" class="folder-bar"></nav>
+
         <section class="email-panel">
-            <h2>Отслеживаемые адреса</h2>
+            <div class="panel-header">
+                <h2 id="panel-title">Отслеживаемые адреса</h2>
+                <div id="folder-actions" class="folder-actions" hidden>
+                    <button type="button" id="folder-rename" class="btn btn-secondary btn-small">Переименовать</button>
+                    <button type="button" id="folder-delete" class="btn btn-secondary btn-small btn-remove">Удалить папку</button>
+                </div>
+            </div>
             <form id="add-form" class="add-form">
                 <input type="text" id="add-address" class="form-control" placeholder="name@{{ domains[0] }}" spellcheck="false" required>
                 <input type="text" id="add-note" class="form-control" placeholder="Заметка (необязательно)" maxlength="100">
@@ -31,7 +39,7 @@
             </form>
             <p id="add-error" class="form-error"></p>
             <ul id="address-list" class="address-list"></ul>
-            <p id="address-placeholder" class="admin-placeholder">Список пуст. Добавьте адрес, и все письма на него будут появляться ниже.</p>
+            <p id="address-placeholder" class="admin-placeholder"></p>
         </section>
 
         <main class="inbox-section">

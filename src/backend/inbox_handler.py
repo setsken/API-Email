@@ -2,6 +2,7 @@ import json
 import re
 import os
 import threading
+import uuid
 import config
 
 # The server runs multiple threads, so the read-modify-write in recv_email
@@ -39,6 +40,9 @@ def recv_email(email_json: dict):
     if not recipient:
         return
 
+    # Lets the admin panel point at this exact email, e.g. to delete it
+    email_json.setdefault("Id", uuid.uuid4().hex)
+
     with _inbox_lock:
         check_inbox_size()
         inbox = read_inbox()
@@ -48,3 +52,24 @@ def recv_email(email_json: dict):
 
         inbox[recipient].append(email_json)
         write_inbox(inbox)
+
+# Identifies an email inside its inbox. Emails saved before Ids existed
+# fall back to their time, sender and subject
+def email_key(email: dict) -> str:
+    return email.get("Id") or f"{email.get('Timestamp')}|{email.get('From')}|{email.get('Subject')}"
+
+# Deletes one email from an inbox. Returns False if it was not found
+def delete_email(address: str, key: str) -> bool:
+    with _inbox_lock:
+        inbox = read_inbox()
+        emails = inbox.get(address, [])
+
+        for i, email in enumerate(emails):
+            if email_key(email) == key:
+                del emails[i]
+                if not emails:
+                    del inbox[address]
+                write_inbox(inbox)
+                return True
+
+    return False

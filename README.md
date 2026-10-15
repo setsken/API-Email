@@ -178,7 +178,9 @@ Edit .env to change these or set environment variables if you are using docker. 
 
 ## Admin panel
 
-Open `/admin` and log in with `ADMIN_PASSWORD`. Add the addresses you want to watch (they must be on one of your `DOMAINS`), and every email sent to them shows up in one feed on that page, refreshed every 5 seconds. One-time codes are detected in the subject and body and shown next to each email; click a code to copy it. Click an address to see only its emails.
+Open `/admin` and log in with `ADMIN_PASSWORD`. Add the addresses you want to watch (they must be on one of your `DOMAINS`), and every email sent to them shows up in one feed on that page, refreshed every 5 seconds. One-time codes are detected in the subject and body and shown next to each email; click a code to copy it. Click an address to see only its emails. The ✕ next to an email deletes it for good (it disappears from the public inbox too).
+
+Addresses can be grouped into folders: create one with "+ Папка", and the tabs at the top switch between all addresses and a single folder, showing only the emails of that folder's addresses. An address added while a folder is open goes into it; the dropdown on each address moves it to another folder. Deleting a folder keeps its addresses, just without a folder. The open folder is kept in the page URL (`/admin#folder=...`), so it survives a reload.
 
 The public inbox keeps working as before: watched addresses are just collected in the admin panel as well. The `/debug/*` endpoints also require the admin login.
 

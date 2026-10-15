@@ -36,18 +36,32 @@ def logout():
     session.clear()
     return redirect(url_for('admin.index'))
 
-# Watched addresses with their email counts, plus all emails sent to them, newest first
+# JSON body of a request, never None
+def _json_body() -> dict:
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else {}
+
+# Folders, all watched addresses with their email counts, and the emails sent
+# to them, newest first. ?folder= and ?address= narrow down the emails
 @bp.route('/api/feed')
 @auth.admin_required
 def feed():
-    entries = admin_store.read_addresses()
+    folder = request.args.get('folder', '')
+    only_address = request.args.get('address', '').strip().lower()
+
+    state = admin_store.read_state()
     inbox = inbox_handler.read_inbox()
 
     addresses = []
     emails = []
-    for entry in entries:
+    for entry in state['addresses']:
         received = inbox.get(entry['address'], [])
-        addresses.append({**entry, "count": len(received)})
+        addresses.append({**entry, "folder": entry.get('folder'), "count": len(received)})
+
+        if folder and entry.get('folder') != folder:
+            continue
+        if only_address and entry['address'] != only_address:
+            continue
         emails.extend(received)
 
     addresses.sort(key=lambda a: a.get('added', 0), reverse=True)
@@ -55,15 +69,25 @@ def feed():
     emails = emails[:FEED_LIMIT]
 
     for email in emails:
+        email['Key'] = inbox_handler.email_key(email)
         email['Code'] = extract_code(email.get('Subject', ''), email.get('Body', ''))
 
-    return jsonify({"addresses": addresses, "emails": emails}), 200
+    return jsonify({"folders": state['folders'], "addresses": addresses, "emails": emails}), 200
 
 @bp.route('/api/addresses', methods=['POST'])
 @auth.admin_required
 def add_address():
-    data = request.get_json(silent=True) or {}
-    error = admin_store.add_address(str(data.get('address', '')), str(data.get('note', '')))
+    data = _json_body()
+    error = admin_store.add_address(str(data.get('address', '')), str(data.get('note', '')), data.get('folder') or None)
+    if error:
+        return jsonify({"error": error}), 400
+    return jsonify({"status": "ok"}), 200
+
+# Moves an address to another folder ({"folder": null} takes it out of folders)
+@bp.route('/api/addresses/<path:address>', methods=['PATCH'])
+@auth.admin_required
+def move_address(address):
+    error = admin_store.move_address(address, _json_body().get('folder') or None)
     if error:
         return jsonify({"error": error}), 400
     return jsonify({"status": "ok"}), 200
@@ -73,4 +97,42 @@ def add_address():
 def remove_address(address):
     if not admin_store.remove_address(address):
         return jsonify({"error": "Адреса нет в списке"}), 404
+    return jsonify({"status": "ok"}), 200
+
+@bp.route('/api/folders', methods=['POST'])
+@auth.admin_required
+def add_folder():
+    folder, error = admin_store.add_folder(str(_json_body().get('name', '')))
+    if error:
+        return jsonify({"error": error}), 400
+    return jsonify(folder), 200
+
+@bp.route('/api/folders/<folder_id>', methods=['PATCH'])
+@auth.admin_required
+def rename_folder(folder_id):
+    error = admin_store.rename_folder(folder_id, str(_json_body().get('name', '')))
+    if error:
+        return jsonify({"error": error}), 400
+    return jsonify({"status": "ok"}), 200
+
+@bp.route('/api/folders/<folder_id>', methods=['DELETE'])
+@auth.admin_required
+def delete_folder(folder_id):
+    if not admin_store.delete_folder(folder_id):
+        return jsonify({"error": "Папка не найдена"}), 404
+    return jsonify({"status": "ok"}), 200
+
+# Deletes one email for good, so it's gone from the public inbox too
+@bp.route('/api/emails', methods=['DELETE'])
+@auth.admin_required
+def delete_email():
+    data = _json_body()
+    address = str(data.get('address', '')).strip().lower()
+
+    # only emails of watched addresses can be deleted from here
+    if not any(e['address'] == address for e in admin_store.read_state()['addresses']):
+        return jsonify({"error": "Адреса нет в списке"}), 404
+
+    if not inbox_handler.delete_email(address, str(data.get('key', ''))):
+        return jsonify({"error": "Письмо не найдено"}), 404
     return jsonify({"status": "ok"}), 200

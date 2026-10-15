@@ -57,10 +57,6 @@
     color: var(--text-dark-color);
 }
 
-.admin-placeholder[hidden] {
-    display: none;
-}
-
 /* watched addresses and the email feed */
 .address-list,
 #feed-list {
@@ -68,8 +64,7 @@
 }
 
 .address-item {
-    display: grid;
-    grid-template-columns: 1fr auto auto auto;
+    display: flex;
     align-items: center;
     gap: 0.75rem;
     padding: 0.6rem 0.75rem;
@@ -94,7 +89,33 @@
 }
 
 .address-info {
+    flex: 1;
     min-width: 0;
+}
+
+/* folder dropdown, count and buttons on the right of an address */
+.address-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+/* dropdown to move an address between folders */
+.folder-select {
+    max-width: 150px;
+    padding: 0.4rem 0.5rem;
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--content-radius);
+    font-family: var(--font-family);
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.folder-select:focus {
+    outline: 1px solid var(--primary-color);
 }
 
 .address-info .address {
@@ -123,9 +144,89 @@
     text-align: center;
 }
 
-/* .btn sets display, which would override the hidden attribute */
-.btn[hidden] {
-    display: none;
+/* classes like .btn set display, which would override the hidden attribute */
+[hidden] {
+    display: none !important;
+}
+
+/* folder tabs above the panels */
+.folder-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.folder-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: 100%;
+    padding: 0.45rem 0.9rem;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background-color: var(--surface-color);
+    color: var(--text-color);
+    font-family: var(--font-family);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.folder-chip:hover {
+    background-color: var(--secondary-color);
+}
+
+/* the open folder */
+.folder-chip.active {
+    background-color: var(--primary-color);
+    border-color: var(--primary-hover-color);
+}
+
+.folder-chip .folder-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* number of addresses in a folder */
+.folder-chip .folder-count {
+    padding: 0 0.45rem;
+    border-radius: 999px;
+    background-color: rgba(255, 255, 255, 0.1);
+    font-size: 0.75rem;
+}
+
+/* "+ folder" button */
+.folder-chip.folder-add {
+    border-style: dashed;
+    color: var(--text-dark-color);
+}
+
+.folder-chip.folder-add:hover {
+    color: var(--text-color);
+}
+
+/* panel title with the folder buttons on the right */
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+#panel-title {
+    overflow-wrap: anywhere;
+}
+
+.folder-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-small {
+    padding: 0.45rem 0.8rem;
+    font-size: 0.8rem;
 }
 
 /* small square buttons */
@@ -151,6 +252,11 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* details, code + time, delete button */
+.email-item .email-summary {
+    grid-template-columns: 1fr auto auto;
 }
 
 /* code + time on the right of an email */
@@ -218,5 +324,29 @@
     .address-info .address {
         white-space: normal;
         word-break: break-all;
+    }
+
+    /* address on its own line, controls below it */
+    .address-item {
+        flex-wrap: wrap;
+    }
+
+    .address-info {
+        flex-basis: 100%;
+    }
+
+    .address-controls {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .folder-select {
+        flex: 1;
+        max-width: none;
+    }
+
+    .email-item .email-summary {
+        gap: 0.6rem;
+        padding: 1rem 0.25rem;
     }
 }

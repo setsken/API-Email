@@ -1,5 +1,10 @@
 document.addEventListener("DOMContentLoaded", () => {
     // make element references
+    const folderBar = document.getElementById('folder-bar');
+    const panelTitle = document.getElementById('panel-title');
+    const folderActions = document.getElementById('folder-actions');
+    const folderRename = document.getElementById('folder-rename');
+    const folderDelete = document.getElementById('folder-delete');
     const addForm = document.getElementById('add-form');
     const addAddress = document.getElementById('add-address');
     const addNote = document.getElementById('add-note');
@@ -14,17 +19,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const BODY_PREFIX = '<base target="_blank">';
 
     // make variables
+    let folders = [];
     let addresses = [];
-    let emails = [];
-    let activeFilter = null;      // address the feed is narrowed to, null for all
-    let addressSignature = '';    // skip re-rendering when nothing changed
+    let emails = null;            // null while the feed for the current view is loading
+    let activeFolder = null;      // open folder id (kept in the url as #folder=...), null for all
+    let activeAddress = null;     // address the feed is narrowed to, null for all
+    let folderSignature = '';     // skip re-rendering when nothing changed
+    let addressSignature = '';
     let feedSignature = '';
     let seenKeys = null;          // emails from the previous poll, to highlight new ones
     const openKeys = new Set();   // expanded emails stay open across re-renders
 
     // add event listeners
     addForm.addEventListener('submit', onAdd);
-    filterReset.addEventListener('click', () => setFilter(null));
+    filterReset.addEventListener('click', () => setAddressFilter(null));
+    folderRename.addEventListener('click', renameFolder);
+    folderDelete.addEventListener('click', deleteFolder);
+    window.addEventListener('hashchange', applyHash);
 
     // function definitions
 
@@ -49,26 +60,171 @@ document.addEventListener("DOMContentLoaded", () => {
         return data;
     }
 
-    // load addresses and emails from the server
+    // open the folder from the url, so a reload or the back button keeps it
+    function applyHash() {
+        const match = location.hash.match(/^#folder=([\w-]+)$/);
+        activeFolder = match ? match[1] : null;
+        activeAddress = null;
+        filterReset.hidden = true;
+        resetFeed();
+        render();
+        refresh();
+    }
+
+    // switch to a folder, or to all addresses with null
+    function openFolder(id) {
+        location.hash = id ? `folder=${id}` : '';
+    }
+
+    // show emails for one address only, or for all with null
+    function setAddressFilter(address) {
+        activeAddress = address;
+        filterReset.hidden = !address;
+        resetFeed();
+        render();
+        refresh();
+    }
+
+    // forget the shown emails when the view changes
+    function resetFeed() {
+        emails = null;
+        seenKeys = null;  // so the new view doesn't flash as all-new
+        feedSignature = '';
+    }
+
+    function viewKey() {
+        return `${activeFolder}|${activeAddress}`;
+    }
+
+    // load folders, addresses and the emails of the current view
     async function refresh() {
+        const requestedView = viewKey();
+        const params = new URLSearchParams();
+        if (activeFolder) params.set('folder', activeFolder);
+        if (activeAddress) params.set('address', activeAddress);
+
         try {
-            const data = await api('GET', '/admin/api/feed');
+            const data = await api('GET', `/admin/api/feed?${params}`);
+
+            // the view changed while this request was running
+            if (requestedView !== viewKey()) return;
+
+            folders = data.folders;
             addresses = data.addresses;
+
+            // the open folder is gone (deleted, maybe in another tab)
+            if (activeFolder && !folders.some(folder => folder.id === activeFolder)) {
+                openFolder(null);
+                return;
+            }
+
+            // the filtered address was removed or moved out of this folder
+            if (activeAddress && !visibleAddresses().some(entry => entry.address === activeAddress)) {
+                setAddressFilter(null);
+                return;
+            }
+
             emails = data.emails;
-            renderAddresses();
-            renderFeed();
+            render();
         } catch (e) {
             console.error('Failed to load feed', e);
         }
     }
 
-    // add an address from the form
+    function render() {
+        renderFolders();
+        renderAddresses();
+        renderFeed();
+    }
+
+    // addresses shown in the current folder
+    function visibleAddresses() {
+        return activeFolder ? addresses.filter(entry => entry.folder === activeFolder) : addresses;
+    }
+
+    // render the folder tabs, the panel title and the folder buttons
+    function renderFolders() {
+        const signature = JSON.stringify([folders, addresses.map(entry => entry.folder), activeFolder]);
+        if (signature === folderSignature) return;
+        folderSignature = signature;
+
+        const chips = [folderChip(null, 'Все адреса', addresses.length)];
+        folders.forEach(folder => {
+            chips.push(folderChip(folder.id, folder.name, addresses.filter(entry => entry.folder === folder.id).length));
+        });
+
+        const addBtn = el('button', 'folder-chip folder-add', '+ Папка');
+        addBtn.type = 'button';
+        addBtn.addEventListener('click', createFolder);
+        chips.push(addBtn);
+
+        folderBar.replaceChildren(...chips);
+
+        const current = folders.find(folder => folder.id === activeFolder);
+        panelTitle.textContent = current ? current.name : 'Отслеживаемые адреса';
+        folderActions.hidden = !current;
+    }
+
+    function folderChip(id, name, count) {
+        const chip = el('button', 'folder-chip');
+        chip.type = 'button';
+        chip.title = `Адресов: ${count}`;
+        if (id === activeFolder) chip.classList.add('active');
+
+        chip.append(el('span', 'folder-name', name), el('span', 'folder-count', String(count)));
+        // clicking the open folder again drops the address filter inside it
+        chip.addEventListener('click', () => id === activeFolder ? setAddressFilter(null) : openFolder(id));
+        return chip;
+    }
+
+    async function createFolder() {
+        const name = prompt('Название новой папки:');
+        if (!name || !name.trim()) return;
+
+        try {
+            const folder = await api('POST', '/admin/api/folders', { name });
+            folders.push(folder);
+            openFolder(folder.id);
+        } catch (e) {
+            alert(e.message);
+        }
+    }
+
+    async function renameFolder() {
+        const folder = folders.find(f => f.id === activeFolder);
+        if (!folder) return;
+
+        const name = prompt('Новое название папки:', folder.name);
+        if (!name || !name.trim() || name.trim() === folder.name) return;
+
+        try {
+            await api('PATCH', `/admin/api/folders/${folder.id}`, { name });
+            await refresh();
+        } catch (e) {
+            alert(e.message);
+        }
+    }
+
+    async function deleteFolder() {
+        const folder = folders.find(f => f.id === activeFolder);
+        if (!folder) return;
+        if (!confirm(`Удалить папку «${folder.name}»?\nАдреса из неё останутся в списке без папки, письма не удалятся.`)) return;
+
+        try {
+            await api('DELETE', `/admin/api/folders/${folder.id}`);
+            openFolder(null);
+        } catch (e) {
+            alert(e.message);
+        }
+    }
+
+    // add an address from the form, into the open folder
     async function onAdd(event) {
         event.preventDefault();
         addError.textContent = '';
 
         try {
-            await api('POST', '/admin/api/addresses', { address: addAddress.value, note: addNote.value });
+            await api('POST', '/admin/api/addresses', { address: addAddress.value, note: addNote.value, folder: activeFolder });
             addAddress.value = '';
             addNote.value = '';
             await refresh();
@@ -83,78 +239,123 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
             await api('DELETE', `/admin/api/addresses/${encodeURIComponent(address)}`);
-            if (activeFilter === address) activeFilter = null;
             await refresh();
         } catch (e) {
             alert(e.message);
         }
     }
 
-    // show emails for one address only, or for all with null
-    function setFilter(address) {
-        activeFilter = address;
-        filterReset.hidden = !address;
-        renderAddresses();
-        renderFeed();
+    // move an address to another folder, '' takes it out of folders
+    async function moveAddress(address, folder) {
+        try {
+            await api('PATCH', `/admin/api/addresses/${encodeURIComponent(address)}`, { folder: folder || null });
+        } catch (e) {
+            alert(e.message);
+        }
+        await refresh();
     }
 
-    // render the watched address list
+    // delete one email for good
+    async function deleteEmail(email) {
+        if (!confirm(`Удалить письмо «${email.Subject}» от ${email.From}?\nОно пропадёт и из временной почты.`)) return;
+
+        try {
+            await api('DELETE', '/admin/api/emails', { address: email.To, key: email.Key });
+            openKeys.delete(emailKey(email));
+        } catch (e) {
+            alert(e.message);
+        }
+        await refresh();
+    }
+
+    // render the watched address list of the current folder
     function renderAddresses() {
-        const signature = JSON.stringify([addresses, activeFilter]);
+        const visible = visibleAddresses();
+        const signature = JSON.stringify([visible, folders, activeAddress]);
         if (signature === addressSignature) return;
         addressSignature = signature;
 
-        addressList.replaceChildren();
-        addressPlaceholder.hidden = addresses.length > 0;
+        addressList.replaceChildren(...visible.map(buildAddressItem));
 
-        addresses.forEach(entry => {
-            const item = el('li', 'address-item');
-            if (entry.address === activeFilter) item.classList.add('active');
-            item.title = 'Показать письма только на этот адрес';
+        addressPlaceholder.hidden = visible.length > 0;
+        addressPlaceholder.textContent = activeFolder
+            ? 'В папке пока нет адресов. Добавьте адрес здесь или перенесите существующий из «Все адреса».'
+            : 'Список пуст. Добавьте адрес, и все письма на него будут появляться ниже.';
+    }
 
-            const info = el('div', 'address-info');
-            info.append(el('div', 'address', entry.address));
-            if (entry.note) info.append(el('div', 'note', entry.note));
+    function buildAddressItem(entry) {
+        const item = el('li', 'address-item');
+        if (entry.address === activeAddress) item.classList.add('active');
+        item.title = 'Показать письма только на этот адрес';
 
-            const count = el('span', 'count', String(entry.count));
-            count.title = 'Писем на адрес';
+        const info = el('div', 'address-info');
+        info.append(el('div', 'address', entry.address));
+        if (entry.note) info.append(el('div', 'note', entry.note));
 
-            const copyBtn = iconButton('copy-icon.svg', 'Скопировать адрес');
-            copyBtn.addEventListener('click', event => {
-                event.stopPropagation();
-                copy(entry.address, copyBtn);
-            });
+        const controls = el('div', 'address-controls');
+        if (folders.length > 0) controls.append(folderSelect(entry));
 
-            const removeBtn = el('button', 'btn btn-secondary btn-icon btn-remove', '✕');
-            removeBtn.title = 'Убрать из списка';
-            removeBtn.addEventListener('click', event => {
-                event.stopPropagation();
-                removeAddress(entry.address);
-            });
+        const count = el('span', 'count', String(entry.count));
+        count.title = 'Писем на адрес';
 
-            item.addEventListener('click', () => setFilter(activeFilter === entry.address ? null : entry.address));
-            item.append(info, count, copyBtn, removeBtn);
-            addressList.append(item);
+        const copyBtn = iconButton('copy-icon.svg', 'Скопировать адрес');
+        copyBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            copy(entry.address, copyBtn);
         });
+
+        const removeBtn = el('button', 'btn btn-secondary btn-icon btn-remove', '✕');
+        removeBtn.title = 'Убрать из списка';
+        removeBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            removeAddress(entry.address);
+        });
+
+        controls.append(count, copyBtn, removeBtn);
+        item.append(info, controls);
+        item.addEventListener('click', () => setAddressFilter(activeAddress === entry.address ? null : entry.address));
+        return item;
+    }
+
+    // dropdown to move an address between folders
+    function folderSelect(entry) {
+        const select = el('select', 'folder-select');
+        select.title = 'Папка адреса';
+        select.append(new Option('Без папки', ''));
+        folders.forEach(folder => select.append(new Option(folder.name, folder.id)));
+        select.value = entry.folder || '';
+
+        select.addEventListener('click', event => event.stopPropagation());
+        select.addEventListener('change', () => moveAddress(entry.address, select.value));
+        return select;
     }
 
     // render the email feed
     function renderFeed() {
-        const visible = activeFilter ? emails.filter(email => email.To === activeFilter) : emails;
-        const signature = JSON.stringify([visible.map(emailKey), activeFilter, addresses.length]);
+        if (emails === null) {
+            feedList.replaceChildren();
+            feedPlaceholder.hidden = false;
+            feedPlaceholder.textContent = 'Загрузка…';
+            return;
+        }
+
+        const visibleCount = visibleAddresses().length;
+        const signature = JSON.stringify([emails.map(emailKey), visibleCount]);
 
         if (signature !== feedSignature) {
             feedSignature = signature;
 
-            feedList.replaceChildren(...visible.map(email => {
+            feedList.replaceChildren(...emails.map(email => {
                 const isNew = seenKeys !== null && !seenKeys.has(emailKey(email));
                 return buildEmailItem(email, isNew);
             }));
 
-            feedPlaceholder.hidden = visible.length > 0;
-            if (addresses.length === 0) {
-                feedPlaceholder.textContent = 'Здесь будут письма на адреса из списка.';
-            } else if (activeFilter) {
+            feedPlaceholder.hidden = emails.length > 0;
+            if (visibleCount === 0) {
+                feedPlaceholder.textContent = activeFolder
+                    ? 'Добавьте адреса в эту папку, и письма на них появятся здесь.'
+                    : 'Здесь будут письма на адреса из списка.';
+            } else if (activeAddress) {
                 feedPlaceholder.textContent = 'На этот адрес писем пока нет.';
             } else {
                 feedPlaceholder.textContent = 'Писем пока нет. Новые появятся здесь автоматически.';
@@ -196,7 +397,14 @@ document.addEventListener("DOMContentLoaded", () => {
         time.title = new Date(email.Timestamp * 1000).toLocaleString('ru-RU');
         meta.append(time);
 
-        summary.append(details, meta);
+        const deleteBtn = el('button', 'btn btn-secondary btn-icon btn-remove', '✕');
+        deleteBtn.title = 'Удалить письмо';
+        deleteBtn.addEventListener('click', event => {
+            event.stopPropagation();
+            deleteEmail(email);
+        });
+
+        summary.append(details, meta, deleteBtn);
 
         // sandboxed: scripts in emails never run, and links can still open in a new tab
         const body = el('div', 'email-body');
@@ -231,9 +439,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // emails have no id, so identify them by their fields
+    // the server gives every email a key that is unique within its inbox
     function emailKey(email) {
-        return `${email.To}|${email.Timestamp}|${email.From}|${email.Subject}`;
+        return `${email.To}|${email.Key}`;
     }
 
     // copy text and flash the button; with a label the button shows it, then the text again
@@ -278,8 +486,8 @@ document.addEventListener("DOMContentLoaded", () => {
         return button;
     }
 
-    // load everything when the page opens
-    refresh();
+    // load the view from the url when the page opens
+    applyHash();
 
     // automatic refreshing
     setInterval(refresh, 5000);
