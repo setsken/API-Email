@@ -13,7 +13,6 @@ from .code_extractor import extract_code, extract_link
 
 logger = logging.getLogger(__name__)
 
-API_URL = "https://api.telegram.org/bot{token}/{method}"
 
 LINK_CODE_TTL = 600          # a /link code from the admin panel works for 10 minutes
 LINK_MAX_FAILURES = 5        # wrong /link codes a chat may send per LINK_CODE_TTL
@@ -67,7 +66,8 @@ def webhook_secret() -> str:
 def _request(method: str, **params):
     for attempt in itertools.count():
         try:
-            resp = requests.post(API_URL.format(token=config.TELEGRAM_BOT_TOKEN, method=method), json=params, timeout=15)
+            url = f"{config.TELEGRAM_API_URL}/bot{config.TELEGRAM_BOT_TOKEN}/{method}"
+            resp = requests.post(url, json=params, timeout=15)
             data = resp.json()
             break
         except Exception as e:
@@ -157,6 +157,7 @@ def status(state: dict) -> dict:
         "webhook_error": info["webhook_error"] if config.PUBLIC_URL else "не известен адрес сайта (RAILWAY_PUBLIC_DOMAIN или PUBLIC_URL)",
         "last_update": info["last_update"],
         "last_error": info["last_error"],
+        "api_url": config.TELEGRAM_API_URL,
         "chats": state["telegram_chats"],
     }
 

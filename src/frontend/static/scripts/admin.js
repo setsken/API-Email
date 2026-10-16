@@ -190,6 +190,9 @@ document.addEventListener("DOMContentLoaded", () => {
         // what the server saw since its last restart, to tell "nothing arrives" from "can't reply"
         const diag = [];
         if (telegram.configured) {
+            if (telegram.api_url && telegram.api_url !== 'https://api.telegram.org') {
+                diag.push(`Запросы к Telegram идут через прокси ${telegram.api_url}`);
+            }
             diag.push(telegram.last_update
                 ? `Последнее сообщение из Telegram: ${formatTime(telegram.last_update)}`
                 : 'Из Telegram с момента запуска сервера ничего не приходило');

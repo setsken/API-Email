@@ -177,6 +177,7 @@ Edit .env to change these or set environment variables if you are using docker. 
 | `SECRET_KEY`          | Optional. Signs the admin session cookie; derived from `ADMIN_PASSWORD` if not set. |
 | `TELEGRAM_BOT_TOKEN`  | Optional. Token from @BotFather; turns on the Telegram bot. |
 | `PUBLIC_URL`          | Optional. Public address of the site for the Telegram webhook; on Railway `RAILWAY_PUBLIC_DOMAIN` is used. |
+| `TELEGRAM_API_URL`    | Optional. Proxy for Bot API calls instead of `https://api.telegram.org` (see below). |
 
 ## Admin panel
 
@@ -195,6 +196,8 @@ The bot posts one-time codes (or the verification link, when an email has no cod
 3. Tick the folders the group gets codes for. Each group only sees its own folders.
 
 Commands in a linked group: `/add name@domain [note]` (the bot asks which folder), `/remove name@domain`, `/list`, `/help`. Emails without a code or a verification link are not posted.
+
+**Railway and Telegram:** Telegram blocks some of Railway's IP ranges, so calls to `api.telegram.org` can time out (the Telegram panel in the admin shows the last error). The fix is a Cloudflare Worker that forwards the calls: deploy [docs/telegram-proxy-worker.js](docs/telegram-proxy-worker.js) as a worker and set `TELEGRAM_API_URL` to its address.
 
 ## Deploying on Railway
 

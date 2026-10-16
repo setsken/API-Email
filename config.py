@@ -43,6 +43,10 @@ SECRET_KEY = os.getenv("SECRET_KEY") or hashlib.sha256(f"maildrop-session:{ADMIN
 # Telegram bot (optional): token from @BotFather. It sends codes to linked groups
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 
+# Where Bot API calls go. Telegram blocks some of Railway's IP ranges, so this
+# can point to a proxy (e.g. a Cloudflare Worker) that forwards to api.telegram.org
+TELEGRAM_API_URL = (os.getenv("TELEGRAM_API_URL", "").strip() or "https://api.telegram.org").rstrip("/")
+
 # Public address of the site, used to register the Telegram webhook.
 # Railway provides RAILWAY_PUBLIC_DOMAIN, PUBLIC_URL overrides it
 _public_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN", "").strip()
