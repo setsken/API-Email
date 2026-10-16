@@ -192,7 +192,7 @@ The public inbox keeps working as before: watched addresses are just collected i
 The bot posts one-time codes (or the verification link, when an email has no code) to Telegram groups, and lets the group add addresses.
 
 1. Create a bot with [@BotFather](https://t.me/BotFather) and put its token in `TELEGRAM_BOT_TOKEN`. On startup the app registers the webhook (`/telegram/webhook`) at its public address.
-2. In the admin panel open **Telegram** → **Привязать группу**, add the bot to the group (as an admin), and send the shown `/link` command there.
+2. In the admin panel open **Telegram** → **Привязать группу**, add the bot to the group, and send the shown `/link` command there. The bot doesn't need admin rights: commands addressed to it (`/add@bot ...`), replies to its messages and its buttons always reach it. Only an address sent as a plain message right after a bare `/add` (without "reply") needs the bot to be an admin.
 3. Tick the folders the group gets codes for. Each group only sees its own folders.
 
 Commands in a linked group: `/add name@domain [note]` (the bot asks which folder), `/remove name@domain`, `/list`, `/help`. Emails without a code or a verification link are not posted.
