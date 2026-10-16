@@ -18,6 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const tgPanel = document.getElementById('tg-panel');
     const tgLink = document.getElementById('tg-link');
     const tgStatus = document.getElementById('tg-status');
+    const tgDiag = document.getElementById('tg-diag');
     const tgCodeBox = document.getElementById('tg-code-box');
     const tgBotName = document.getElementById('tg-bot-name');
     const tgCode = document.getElementById('tg-code');
@@ -185,6 +186,19 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             tgStatus.textContent = `Бот ${bot} работает. Привязано групп: ${telegram.chats.length}.`;
         }
+
+        // what the server saw since its last restart, to tell "nothing arrives" from "can't reply"
+        const diag = [];
+        if (telegram.configured) {
+            diag.push(telegram.last_update
+                ? `Последнее сообщение из Telegram: ${formatTime(telegram.last_update)}`
+                : 'Из Telegram с момента запуска сервера ничего не приходило');
+            if (telegram.last_error) {
+                const e = telegram.last_error;
+                diag.push(`Последняя ошибка (${formatTime(e.time)}, ${e.method}): ${e.error}`);
+            }
+        }
+        tgDiag.textContent = diag.join(' · ');
 
         tgChats.replaceChildren(...telegram.chats.map(buildChatItem));
     }

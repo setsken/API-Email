@@ -18,6 +18,7 @@ API_URL = "https://api.telegram.org/bot{token}/{method}"
 LINK_CODE_TTL = 600          # a /link code from the admin panel works for 10 minutes
 LINK_MAX_FAILURES = 5        # wrong /link codes a chat may send per LINK_CODE_TTL
 PENDING_ADD_TTL = 3600       # folder buttons under an /add stay usable for an hour
+AWAIT_ADDRESS_TTL = 300      # after a bare /add, the next message counts as the address for 5 minutes
 LIST_LIMIT = 50              # addresses shown per folder in /list
 MESSAGE_LIMIT = 4000         # Telegram allows 4096 characters per message
 WEBHOOK_RETRY_DELAYS = [3, 10, 30, 60, 120, 300]  # seconds between webhook registration attempts
@@ -51,7 +52,9 @@ _lock = threading.Lock()
 _link_codes = {}      # code -> expiry time
 _link_failures = {}   # chat id -> (wrong attempts, time of the first one)
 _pending_adds = {}    # token -> {"chat", "address", "note", "expires"}
-_bot = {"username": None, "id": None, "checked": 0, "webhook": None, "webhook_error": None}
+_awaiting_address = {}  # (chat id, user id) -> expiry, after a bare /add
+_bot = {"username": None, "id": None, "checked": 0, "webhook": None, "webhook_error": None,
+        "last_update": None, "last_error": None}
 
 def enabled() -> bool:
     return bool(config.TELEGRAM_BOT_TOKEN)
@@ -79,11 +82,14 @@ def _request(method: str, **params):
                 continue
 
             logger.warning("Telegram %s failed: %s", method, error)
+            _bot["last_error"] = {"time": int(time.time()), "method": method, "error": error}
             return None, error
 
     if not data.get("ok"):
-        logger.warning("Telegram %s error: %s", method, data.get("description"))
-        return None, data.get("description") or "Telegram error"
+        error = data.get("description") or "Telegram error"
+        logger.warning("Telegram %s error: %s", method, error)
+        _bot["last_error"] = {"time": int(time.time()), "method": method, "error": error}
+        return None, error
 
     return data.get("result"), None
 
@@ -149,6 +155,8 @@ def status(state: dict) -> dict:
         # None while registration is still running after a restart
         "webhook": info["webhook"] if config.PUBLIC_URL else False,
         "webhook_error": info["webhook_error"] if config.PUBLIC_URL else "не известен адрес сайта (RAILWAY_PUBLIC_DOMAIN или PUBLIC_URL)",
+        "last_update": info["last_update"],
+        "last_error": info["last_error"],
         "chats": state["telegram_chats"],
     }
 
@@ -189,6 +197,8 @@ def _chat_folders(chat: dict, state: dict) -> list:
 # ---------- incoming updates ----------
 
 def handle_update(update: dict):
+    _bot["last_update"] = int(time.time())
+
     if "callback_query" in update:
         _handle_button(update["callback_query"])
         return
@@ -213,18 +223,24 @@ def handle_update(update: dict):
     if not text:
         return
 
+    user_id = (message.get("from") or {}).get("id")
     reply_to = message.get("reply_to_message") or {}
-    if reply_to.get("from", {}).get("id") == bot_info()["id"] and (reply_to.get("text") or "").startswith(ADD_PROMPT):
-        # the answer to "which address to add?"
-        command, args = "/add", text
-    elif text.startswith("/"):
+
+    if text.startswith("/"):
         parts = text.split(maxsplit=1)
         command, _, target = parts[0].partition("@")
         args = parts[1] if len(parts) > 1 else ""
-        # a command for another bot in the same group
-        if target and target.lower() != (bot_info()["username"] or "").lower():
+        # a command for another bot in the same group (when our name is known)
+        me = (bot_info()["username"] or "").lower()
+        if target and me and target.lower() != me:
             return
         command = command.lower()
+    elif (reply_to.get("from") or {}).get("is_bot") and (reply_to.get("text") or "").startswith(ADD_PROMPT):
+        # a reply to "which address to add?"
+        command, args = "/add", text
+    elif _take_awaiting_address(chat_id, user_id):
+        # the next message after a bare /add, sent without "reply"
+        command, args = "/add", text
     else:
         return
 
@@ -238,11 +254,17 @@ def handle_update(update: dict):
         if not linked:
             _send(chat_id, NOT_LINKED)
         elif command == "/add":
-            _cmd_add(message, linked, args)
+            _cmd_add(message, linked, args, user_id)
         elif command == "/remove":
             _cmd_remove(linked, args)
         else:
             _cmd_list(linked)
+
+# True (once) if this user sent a bare /add here a moment ago
+def _take_awaiting_address(chat_id: int, user_id) -> bool:
+    with _lock:
+        expires = _awaiting_address.pop((chat_id, user_id), None)
+    return expires is not None and expires >= time.time()
 
 def _help_text(linked) -> str:
     if not linked:
@@ -271,13 +293,21 @@ def _cmd_link(chat: dict, linked, args: str):
     _send(chat_id, "✅ Группа привязана. Теперь отметьте в админке, какие папки ей доступны: "
                    "коды с адресов этих папок будут приходить сюда.\n\n" + COMMAND_HELP)
 
-def _cmd_add(message: dict, chat: dict, args: str):
+def _cmd_add(message: dict, chat: dict, args: str, user_id=None):
     chat_id = chat["id"]
 
     if not args.strip():
-        _call("sendMessage", chat_id=chat_id, text=ADD_PROMPT + ".", reply_to_message_id=message["message_id"],
+        # the address may come as a reply to this question or as the next message
+        with _lock:
+            _awaiting_address[(chat_id, user_id)] = time.time() + AWAIT_ADDRESS_TTL
+        _call("sendMessage", chat_id=chat_id, text=ADD_PROMPT + ".",
+              reply_parameters={"message_id": message["message_id"], "allow_sending_without_reply": True},
               reply_markup={"force_reply": True, "selective": True, "input_field_placeholder": "имя@домен"})
         return
+
+    # the address is here, stop treating this user's next message as one
+    with _lock:
+        _awaiting_address.pop((chat_id, user_id), None)
 
     parts = args.split(maxsplit=1)
     address = parts[0].lower()

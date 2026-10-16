@@ -53,6 +53,17 @@
     color: #f87171;
 }
 
+/* last update / last error from Telegram */
+.tg-diag {
+    color: var(--text-dark-color);
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+}
+
+.tg-diag:empty {
+    display: none;
+}
+
 /* the one-time /link command */
 .tg-code-box {
     display: flex;
