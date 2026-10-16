@@ -21,6 +21,7 @@ PENDING_ADD_TTL = 3600       # folder buttons under an /add stay usable for an h
 LIST_LIMIT = 50              # addresses shown per folder in /list
 MESSAGE_LIMIT = 4000         # Telegram allows 4096 characters per message
 WEBHOOK_RETRY_DELAYS = [3, 10, 30, 60, 120, 300]  # seconds between webhook registration attempts
+CONNECT_RETRY_DELAYS = [1, 3]  # seconds between attempts when Telegram can't be reached at all
 
 # Text of the question the bot asks after a bare /add; replies to it are the address
 ADD_PROMPT = "Какой адрес добавить? Ответьте на это сообщение адресом"
@@ -61,14 +62,24 @@ def webhook_secret() -> str:
 
 # Calls the Bot API. Returns (result, None) or (None, error description)
 def _request(method: str, **params):
-    try:
-        resp = requests.post(API_URL.format(token=config.TELEGRAM_BOT_TOKEN, method=method), json=params, timeout=15)
-        data = resp.json()
-    except Exception as e:
-        # the URL holds the token, keep it out of the logs
-        error = f"{type(e).__name__}: {e}".replace(config.TELEGRAM_BOT_TOKEN, "***")
-        logger.warning("Telegram %s failed: %s", method, error)
-        return None, error
+    for attempt in itertools.count():
+        try:
+            resp = requests.post(API_URL.format(token=config.TELEGRAM_BOT_TOKEN, method=method), json=params, timeout=15)
+            data = resp.json()
+            break
+        except Exception as e:
+            # the URL holds the token, keep it out of the logs
+            error = f"{type(e).__name__}: {e}".replace(config.TELEGRAM_BOT_TOKEN, "***")
+
+            # no connection was made, so retrying can't send a message twice
+            # (unlike a timeout while waiting for the answer)
+            if isinstance(e, requests.ConnectionError) and attempt < len(CONNECT_RETRY_DELAYS):
+                logger.warning("Telegram %s: no connection, retrying: %s", method, error)
+                time.sleep(CONNECT_RETRY_DELAYS[attempt])
+                continue
+
+            logger.warning("Telegram %s failed: %s", method, error)
+            return None, error
 
     if not data.get("ok"):
         logger.warning("Telegram %s error: %s", method, data.get("description"))

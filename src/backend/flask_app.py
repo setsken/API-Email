@@ -1,7 +1,13 @@
 from flask import Flask
+import urllib3.util.connection
 from .routes import pages, api, admin, telegram
 from . import telegram_bot
 import config
+
+# Railway containers have no outbound IPv6, but api.telegram.org has an IPv6
+# address, and connecting to it fails with "Network is unreachable".
+# Resolve outgoing requests to IPv4 only
+urllib3.util.connection.HAS_IPV6 = False
 
 app = Flask(__name__, template_folder='../frontend/templates', static_folder='../frontend/static')
 
