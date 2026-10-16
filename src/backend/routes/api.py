@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, jsonify
-from .. import inbox_handler, auth
+from .. import inbox_handler, auth, telegram_bot
 import config
 import json
 import re
@@ -210,6 +210,12 @@ def process_received_email(data):
 
         inbox_handler.recv_email(email_json)
         _log(f"Email saved: {from_addr} -> {to_addr}, body length: {len(body)}")
+
+        # a failed Telegram message must not stop the other recipients
+        try:
+            telegram_bot.notify_email(email_json)
+        except Exception as e:
+            _log(f"Telegram notify error: {type(e).__name__}: {e}")
 
 # Wrapper so a failure in the background thread is logged, not swallowed
 def _run_processing(data):

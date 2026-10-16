@@ -13,7 +13,9 @@ ADDRESS_RE = re.compile(r"^[a-z0-9._%+-]+@[a-z0-9.-]+$")
 FOLDER_NAME_MAX = 40
 
 # Reads the admin data:
-# {"folders": [{"id", "name", "created"}], "addresses": [{"address", "note", "added", "folder"}]}
+# {"folders": [{"id", "name", "created"}],
+#  "addresses": [{"address", "note", "added", "folder"}],
+#  "telegram_chats": [{"id", "title", "folders", "linked"}]}
 def read_state() -> dict:
     try:
         with open(config.ADMIN_LIST_FILE, "r", encoding="utf-8") as f:
@@ -27,6 +29,7 @@ def read_state() -> dict:
 
     state.setdefault("folders", [])
     state.setdefault("addresses", [])
+    state.setdefault("telegram_chats", [])
     return state
 
 def _write_state(state: dict):
@@ -44,20 +47,29 @@ def _clean_folder_name(name: str) -> str:
 def _name_taken(state: dict, name: str, except_id: str = None) -> bool:
     return any(f["name"].casefold() == name.casefold() and f["id"] != except_id for f in state["folders"])
 
+# Checks that an address can be watched. Returns an error message, or None
+def validate_address(address: str):
+    if not ADDRESS_RE.match(address):
+        return "Некорректный адрес"
+
+    domain = address.split("@")[1]
+    if domain not in config.DOMAINS:
+        return f"Домен {domain} не обслуживается. Доступные: {', '.join(config.DOMAINS)}"
+
+    return None
+
 # Adds an address to the list, optionally into a folder. An address that is
-# already listed gets moved into that folder instead.
+# already listed gets moved into that folder instead; with allowed_folders,
+# only out of those folders (or out of no folder).
 # Returns (message, error): message is set when the address was moved
-def add_address(address: str, note: str = "", folder: str = None):
+def add_address(address: str, note: str = "", folder: str = None, allowed_folders=None):
     address = address.strip().lower()
     note = note.strip()[:100]
     folder = folder or None
 
-    if not ADDRESS_RE.match(address):
-        return None, "Некорректный адрес"
-
-    domain = address.split("@")[1]
-    if domain not in config.DOMAINS:
-        return None, f"Домен {domain} не обслуживается. Доступные: {', '.join(config.DOMAINS)}"
+    error = validate_address(address)
+    if error:
+        return None, error
 
     with _state_lock:
         state = read_state()
@@ -72,6 +84,8 @@ def add_address(address: str, note: str = "", folder: str = None):
                 return None, "Адрес уже в списке" + (f" (папка «{current['name']}»)" if current else "")
             if current and current["id"] == target["id"]:
                 return None, "Адрес уже в этой папке"
+            if current and allowed_folders is not None and current["id"] not in allowed_folders:
+                return None, "Адрес уже используется в другой папке"
 
             existing["folder"] = target["id"]
             if note:
@@ -166,6 +180,70 @@ def delete_folder(folder_id: str) -> bool:
         for entry in state["addresses"]:
             if entry.get("folder") == folder_id:
                 entry["folder"] = None
+        for chat in state["telegram_chats"]:
+            chat["folders"] = [f for f in chat.get("folders", []) if f != folder_id]
         _write_state(state)
 
     return True
+
+def find_chat(chat_id: int, state: dict = None):
+    state = state or read_state()
+    return next((c for c in state["telegram_chats"] if c["id"] == chat_id), None)
+
+# Links a Telegram chat. Returns False if it was linked already
+def link_chat(chat_id: int, title: str) -> bool:
+    with _state_lock:
+        state = read_state()
+        if find_chat(chat_id, state):
+            return False
+
+        state["telegram_chats"].append({"id": chat_id, "title": title[:100], "folders": [], "linked": int(time.time())})
+        _write_state(state)
+
+    return True
+
+# Unlinks a Telegram chat. Returns False if it was not linked
+def unlink_chat(chat_id: int) -> bool:
+    with _state_lock:
+        state = read_state()
+        remaining = [c for c in state["telegram_chats"] if c["id"] != chat_id]
+        if len(remaining) == len(state["telegram_chats"]):
+            return False
+
+        state["telegram_chats"] = remaining
+        _write_state(state)
+
+    return True
+
+# Sets which folders a chat gets codes for. Returns an error message, or None
+def set_chat_folders(chat_id: int, folders) -> str:
+    if not isinstance(folders, list) or not all(isinstance(f, str) for f in folders):
+        return "Некорректный список папок"
+
+    with _state_lock:
+        state = read_state()
+        chat = find_chat(chat_id, state)
+        if not chat:
+            return "Группа не привязана"
+        if any(not _find_folder(state, f) for f in folders):
+            return "Папка не найдена"
+
+        chat["folders"] = list(dict.fromkeys(folders))
+        _write_state(state)
+
+    return None
+
+# Keeps a linked chat up to date: a new title, or a new id when Telegram
+# turns a group into a supergroup
+def update_chat(chat_id: int, title: str = None, new_id: int = None):
+    with _state_lock:
+        state = read_state()
+        chat = find_chat(chat_id, state)
+        if not chat:
+            return
+
+        if title:
+            chat["title"] = title[:100]
+        if new_id:
+            chat["id"] = new_id
+        _write_state(state)

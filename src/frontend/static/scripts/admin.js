@@ -14,6 +14,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const feedList = document.getElementById('feed-list');
     const feedPlaceholder = document.getElementById('feed-placeholder');
     const filterReset = document.getElementById('filter-reset');
+    const tgToggle = document.getElementById('tg-toggle');
+    const tgPanel = document.getElementById('tg-panel');
+    const tgLink = document.getElementById('tg-link');
+    const tgStatus = document.getElementById('tg-status');
+    const tgCodeBox = document.getElementById('tg-code-box');
+    const tgBotName = document.getElementById('tg-bot-name');
+    const tgCode = document.getElementById('tg-code');
+    const tgChats = document.getElementById('tg-chats');
 
     // links in emails open in a new tab instead of inside the iframe
     const BODY_PREFIX = '<base target="_blank">';
@@ -29,6 +37,10 @@ document.addEventListener("DOMContentLoaded", () => {
     let feedSignature = '';
     let seenKeys = null;          // emails from the previous poll, to highlight new ones
     const openKeys = new Set();   // expanded emails stay open across re-renders
+    let telegram = null;          // bot status and linked groups
+    let telegramSignature = '';
+    let linkCodeTimer = null;
+    let chatsWhenCodeShown = null; // group count when the link code was shown, to hide it once one joins
 
     // add event listeners
     addForm.addEventListener('submit', onAdd);
@@ -36,6 +48,8 @@ document.addEventListener("DOMContentLoaded", () => {
     folderRename.addEventListener('click', renameFolder);
     folderDelete.addEventListener('click', deleteFolder);
     window.addEventListener('hashchange', applyHash);
+    tgToggle.addEventListener('click', () => setTelegramPanel(tgPanel.hidden));
+    tgLink.addEventListener('click', getLinkCode);
 
     // function definitions
 
@@ -111,6 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             folders = data.folders;
             addresses = data.addresses;
+            telegram = data.telegram;
 
             // the open folder is gone (deleted, maybe in another tab)
             if (activeFolder && !folders.some(folder => folder.id === activeFolder)) {
@@ -132,9 +147,150 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function render() {
+        renderTelegram();
         renderFolders();
         renderAddresses();
         renderFeed();
+    }
+
+    // show or hide the Telegram panel; remembered in this browser
+    function setTelegramPanel(open) {
+        tgPanel.hidden = !open;
+        tgToggle.classList.toggle('active', open);
+        try {
+            localStorage.setItem('maildrop-tg-open', open ? '1' : '');
+        } catch (e) {}
+    }
+
+    // render the bot status and the linked groups with their folders
+    function renderTelegram() {
+        if (!telegram) return;
+
+        const signature = JSON.stringify([telegram, folders]);
+        if (signature === telegramSignature) return;
+        telegramSignature = signature;
+
+        if (chatsWhenCodeShown !== null && telegram.chats.length > chatsWhenCodeShown) hideLinkCode();
+
+        const bot = telegram.bot ? `@${telegram.bot}` : 'бот';
+        tgLink.hidden = !telegram.configured;
+        tgStatus.classList.toggle('form-error', telegram.configured && telegram.webhook === false);
+
+        if (!telegram.configured) {
+            tgStatus.textContent = 'Бот не подключён. Создайте бота через @BotFather и добавьте его токен в переменную TELEGRAM_BOT_TOKEN на Railway.';
+        } else if (telegram.webhook === false) {
+            tgStatus.textContent = `${bot}: вебхук не зарегистрирован, бот не получает команды. Причина: ${telegram.webhook_error || 'неизвестна'}.`;
+        } else if (telegram.chats.length === 0) {
+            tgStatus.textContent = `Бот ${bot} работает. Привязанных групп пока нет.`;
+        } else {
+            tgStatus.textContent = `Бот ${bot} работает. Привязано групп: ${telegram.chats.length}.`;
+        }
+
+        tgChats.replaceChildren(...telegram.chats.map(buildChatItem));
+    }
+
+    function buildChatItem(chat) {
+        const item = el('li', 'tg-chat');
+
+        const head = el('div', 'tg-chat-head');
+        const info = el('div', 'tg-chat-info');
+        info.append(el('div', 'tg-chat-title', chat.title), el('div', 'note', `ID ${chat.id} · привязана ${formatTime(chat.linked)}`));
+
+        const testBtn = el('button', 'btn btn-secondary btn-small', 'Тест');
+        testBtn.type = 'button';
+        testBtn.title = 'Отправить в группу тестовое сообщение';
+        testBtn.addEventListener('click', () => testChat(chat, testBtn));
+
+        const unlinkBtn = el('button', 'btn btn-secondary btn-small btn-remove', 'Отвязать');
+        unlinkBtn.type = 'button';
+        unlinkBtn.addEventListener('click', () => unlinkChat(chat));
+
+        head.append(info, testBtn, unlinkBtn);
+
+        // folders whose codes this group gets
+        const row = el('div', 'tg-chat-folders');
+        if (folders.length === 0) {
+            row.append(el('span', 'note', 'Создайте папки, чтобы назначить их группе.'));
+        } else {
+            row.append(el('span', 'note', 'Папки:'));
+            folders.forEach(folder => {
+                const on = chat.folders.includes(folder.id);
+                const chip = el('button', `folder-chip folder-toggle${on ? ' active' : ''}`, `${on ? '✓ ' : ''}${folder.name}`);
+                chip.type = 'button';
+                chip.addEventListener('click', () => toggleChatFolder(chat, folder.id));
+                row.append(chip);
+            });
+            if (chat.folders.length === 0) {
+                row.append(el('span', 'tg-warning', 'Не выбрано ни одной папки: коды в группу не придут.'));
+            }
+        }
+
+        item.append(head, row);
+        return item;
+    }
+
+    // one-time "/link" command for a new group
+    async function getLinkCode() {
+        try {
+            const data = await api('POST', '/admin/api/telegram/link-code');
+            // naming the bot makes Telegram deliver the command even with other bots in the group
+            const command = data.bot ? `/link@${data.bot} ${data.code}` : `/link ${data.code}`;
+
+            tgBotName.textContent = data.bot ? `@${data.bot}` : '';
+            tgCode.textContent = command;
+            tgCode.onclick = () => copy(command, tgCode, 'Скопировано');
+            tgCodeBox.hidden = false;
+
+            chatsWhenCodeShown = telegram ? telegram.chats.length : 0;
+            clearTimeout(linkCodeTimer);
+            linkCodeTimer = setTimeout(hideLinkCode, data.expires_in * 1000);
+        } catch (e) {
+            alert(e.message);
+        }
+    }
+
+    function hideLinkCode() {
+        clearTimeout(linkCodeTimer);
+        tgCodeBox.hidden = true;
+        chatsWhenCodeShown = null;
+    }
+
+    async function toggleChatFolder(chat, folderId) {
+        const next = chat.folders.includes(folderId)
+            ? chat.folders.filter(id => id !== folderId)
+            : [...chat.folders, folderId];
+
+        try {
+            await api('PATCH', `/admin/api/telegram/chats/${chat.id}`, { folders: next });
+        } catch (e) {
+            alert(e.message);
+        }
+        await refresh();
+    }
+
+    async function testChat(chat, button) {
+        try {
+            await api('POST', `/admin/api/telegram/chats/${chat.id}/test`);
+            button.textContent = 'Отправлено ✓';
+            button.classList.add('copied');
+            setTimeout(() => {
+                button.textContent = 'Тест';
+                button.classList.remove('copied');
+            }, 1500);
+        } catch (e) {
+            alert(e.message);
+        }
+    }
+
+    async function unlinkChat(chat) {
+        if (!confirm(`Отвязать группу «${chat.title}»?\nКоды перестанут туда приходить, адреса и папки останутся.`)) return;
+
+        try {
+            await api('DELETE', `/admin/api/telegram/chats/${chat.id}`);
+        } catch (e) {
+            alert(e.message);
+        }
+        await refresh();
     }
 
     // addresses shown in the current folder
@@ -496,6 +652,11 @@ document.addEventListener("DOMContentLoaded", () => {
         button.append(img);
         return button;
     }
+
+    // reopen the Telegram panel if it was open last time
+    try {
+        if (localStorage.getItem('maildrop-tg-open')) setTelegramPanel(true);
+    } catch (e) {}
 
     // load the view from the url when the page opens
     applyHash();

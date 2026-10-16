@@ -18,6 +18,11 @@ _PATTERNS = [
 _SUBJECT_NUMBER = re.compile(r"\b(\d{5,8})\b")
 _CODE_LINE = re.compile(r"^[ \t]*((?=[A-Z]*\d)[A-Z0-9]{4,8})[ \t]*$", re.MULTILINE)
 
+# Links worth clicking (verify, confirm, magic sign-in...) and links to skip
+_URL = re.compile(r"https?://[^\s\"'<>]+")
+_LINK_KEYWORDS = re.compile(r"(?i)verif|confirm|activat|validat|magic|log-?in|sign-?in|auth|token|reset|password")
+_LINK_SKIP = re.compile(r"(?i)unsubscribe|\.(png|jpe?g|gif|svg|css|ico)(\?|$)")
+
 # Turns a stored email body into plain text, keeping line breaks
 def html_to_text(body: str) -> str:
     body = re.sub(r"(?is)<(script|style|head)\b.*?</\1>", " ", body)
@@ -39,5 +44,14 @@ def extract_code(subject: str, body: str):
     match = _SUBJECT_NUMBER.search(subject) or _CODE_LINE.search(text)
     if match:
         return match.group(1)
+
+    return None
+
+# Finds a verification / sign-in link in an email body, or returns None
+def extract_link(body: str):
+    for url in _URL.findall(body or ""):
+        url = html.unescape(url).rstrip(".,;)")
+        if _LINK_KEYWORDS.search(url) and not _LINK_SKIP.search(url):
+            return url
 
     return None

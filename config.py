@@ -39,3 +39,11 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 # Signs the admin session cookie. Derived from the admin password by default,
 # so changing the password logs everyone out
 SECRET_KEY = os.getenv("SECRET_KEY") or hashlib.sha256(f"maildrop-session:{ADMIN_PASSWORD}".encode()).hexdigest()
+
+# Telegram bot (optional): token from @BotFather. It sends codes to linked groups
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+
+# Public address of the site, used to register the Telegram webhook.
+# Railway provides RAILWAY_PUBLIC_DOMAIN, PUBLIC_URL overrides it
+_public_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN", "").strip()
+PUBLIC_URL = (os.getenv("PUBLIC_URL") or (f"https://{_public_domain}" if _public_domain else "")).rstrip("/")

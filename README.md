@@ -175,6 +175,8 @@ Edit .env to change these or set environment variables if you are using docker. 
 | `DATA_DIR`            | Folder for `inbox.json` and the admin list. Defaults to the Railway volume (`RAILWAY_VOLUME_MOUNT_PATH`) or the current folder. |
 | `ADMIN_PASSWORD`      | Password for the admin panel at `/admin`. The panel is disabled while it is empty. |
 | `SECRET_KEY`          | Optional. Signs the admin session cookie; derived from `ADMIN_PASSWORD` if not set. |
+| `TELEGRAM_BOT_TOKEN`  | Optional. Token from @BotFather; turns on the Telegram bot. |
+| `PUBLIC_URL`          | Optional. Public address of the site for the Telegram webhook; on Railway `RAILWAY_PUBLIC_DOMAIN` is used. |
 
 ## Admin panel
 
@@ -183,6 +185,16 @@ Open `/admin` and log in with `ADMIN_PASSWORD`. Add the addresses you want to wa
 Addresses can be grouped into folders: create one with "+ Папка", and the tabs at the top switch between all addresses and a single folder, showing only the emails of that folder's addresses. An address added while a folder is open goes into it; the dropdown on each address moves it to another folder. Deleting a folder keeps its addresses, just without a folder. The open folder is kept in the page URL (`/admin#folder=...`), so it survives a reload.
 
 The public inbox keeps working as before: watched addresses are just collected in the admin panel as well. The `/debug/*` endpoints also require the admin login.
+
+## Telegram bot
+
+The bot posts one-time codes (or the verification link, when an email has no code) to Telegram groups, and lets the group add addresses.
+
+1. Create a bot with [@BotFather](https://t.me/BotFather) and put its token in `TELEGRAM_BOT_TOKEN`. On startup the app registers the webhook (`/telegram/webhook`) at its public address.
+2. In the admin panel open **Telegram** → **Привязать группу**, add the bot to the group (as an admin), and send the shown `/link` command there.
+3. Tick the folders the group gets codes for. Each group only sees its own folders.
+
+Commands in a linked group: `/add name@domain [note]` (the bot asks which folder), `/remove name@domain`, `/list`, `/help`. Emails without a code or a verification link are not posted.
 
 ## Deploying on Railway
 

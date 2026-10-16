@@ -17,10 +17,28 @@
                 <img src="{{ url_for('static', filename='resources/mail-icon.svg') }}" alt="Mail Icon">
                 admin
             </h1>
-            <form method="post" action="{{ url_for('admin.logout') }}">
-                <button type="submit" class="btn btn-secondary">Выйти</button>
-            </form>
+            <div class="header-actions">
+                <button type="button" id="tg-toggle" class="btn btn-secondary">Telegram</button>
+                <form method="post" action="{{ url_for('admin.logout') }}">
+                    <button type="submit" class="btn btn-secondary">Выйти</button>
+                </form>
+            </div>
         </header>
+
+        <section id="tg-panel" class="email-panel" hidden>
+            <div class="panel-header">
+                <h2>Telegram</h2>
+                <button type="button" id="tg-link" class="btn btn-primary btn-small" hidden>Привязать группу</button>
+            </div>
+            <p id="tg-status" class="tg-status"></p>
+            <div id="tg-code-box" class="tg-code-box" hidden>
+                <p>1. Добавьте бота <b id="tg-bot-name"></b> в группу и сделайте его администратором.</p>
+                <p>2. Отправьте в группу эту команду, она действует 10 минут:</p>
+                <button type="button" id="tg-code" class="code-chip" title="Скопировать команду"></button>
+                <p>3. Группа появится ниже. Отметьте папки, коды с адресов которых она будет получать.</p>
+            </div>
+            <ul id="tg-chats" class="tg-chats"></ul>
+        </section>
 
         <nav id="folder-bar" class="folder-bar"></nav>
 

@@ -24,11 +24,114 @@
     color: #4ade80;
 }
 
-/* header with the logout button on the right */
+/* header with the Telegram and logout buttons on the right */
 .admin-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.header-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Telegram button while its panel is open */
+.header-actions .btn.active {
+    background-color: var(--primary-color);
+}
+
+/* Telegram panel */
+.tg-status {
+    color: var(--text-dark-color);
+    font-size: 0.9rem;
+}
+
+.tg-status.form-error {
+    color: #f87171;
+}
+
+/* the one-time /link command */
+.tg-code-box {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 1rem;
+    border: 1px dashed var(--primary-hover-color);
+    border-radius: var(--content-radius);
+    background-color: rgba(120, 64, 151, 0.08);
+    font-size: 0.9rem;
+}
+
+.tg-code-box .code-chip {
+    letter-spacing: normal;
+    font-size: 1rem;
+    text-align: left;
+    word-break: break-all;
+}
+
+/* linked groups */
+.tg-chats {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.tg-chat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--content-radius);
+}
+
+.tg-chat-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tg-chat-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.tg-chat-title {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.tg-chat .note {
+    color: var(--text-dark-color);
+    font-size: 0.85rem;
+}
+
+.tg-chat .btn.copied {
+    background-color: rgba(74, 222, 128, 0.25);
+    color: #4ade80;
+}
+
+/* folders a group gets codes for, click to switch on/off */
+.tg-chat-folders {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.folder-chip.folder-toggle {
+    padding: 0.3rem 0.7rem;
+    font-size: 0.8rem;
+}
+
+.tg-warning {
+    color: #fbbf24;
+    font-size: 0.8rem;
 }
 
 /* section titles */
@@ -329,6 +432,15 @@
     .address-info .address {
         white-space: normal;
         word-break: break-all;
+    }
+
+    /* group name on its own line, buttons below it */
+    .tg-chat-head {
+        flex-wrap: wrap;
+    }
+
+    .tg-chat-info {
+        flex-basis: 100%;
     }
 
     /* address on its own line, controls below it */

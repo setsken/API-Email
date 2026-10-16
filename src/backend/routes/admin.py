@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
 import time
 import config
-from .. import inbox_handler, admin_store, auth
+from .. import inbox_handler, admin_store, auth, telegram_bot
 from ..code_extractor import extract_code
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -72,7 +72,12 @@ def feed():
         email['Key'] = inbox_handler.email_key(email)
         email['Code'] = extract_code(email.get('Subject', ''), email.get('Body', ''))
 
-    return jsonify({"folders": state['folders'], "addresses": addresses, "emails": emails}), 200
+    return jsonify({
+        "folders": state['folders'],
+        "addresses": addresses,
+        "emails": emails,
+        "telegram": telegram_bot.status(state),
+    }), 200
 
 @bp.route('/api/addresses', methods=['POST'])
 @auth.admin_required
@@ -135,4 +140,45 @@ def delete_email():
 
     if not inbox_handler.delete_email(address, str(data.get('key', ''))):
         return jsonify({"error": "Письмо не найдено"}), 404
+    return jsonify({"status": "ok"}), 200
+
+# One-time code that links a Telegram group: the group sends "/link <code>" to the bot
+@bp.route('/api/telegram/link-code', methods=['POST'])
+@auth.admin_required
+def telegram_link_code():
+    if not telegram_bot.enabled():
+        return jsonify({"error": "Бот не настроен: задайте TELEGRAM_BOT_TOKEN"}), 400
+
+    code = telegram_bot.new_link_code()
+    return jsonify({
+        "code": code,
+        "bot": telegram_bot.bot_info()["username"],
+        "expires_in": telegram_bot.LINK_CODE_TTL,
+    }), 200
+
+# Which folders a linked group gets codes for
+@bp.route('/api/telegram/chats/<int(signed=True):chat_id>', methods=['PATCH'])
+@auth.admin_required
+def telegram_chat_folders(chat_id):
+    error = admin_store.set_chat_folders(chat_id, _json_body().get('folders'))
+    if error:
+        return jsonify({"error": error}), 400
+    return jsonify({"status": "ok"}), 200
+
+@bp.route('/api/telegram/chats/<int(signed=True):chat_id>', methods=['DELETE'])
+@auth.admin_required
+def telegram_unlink(chat_id):
+    if not admin_store.unlink_chat(chat_id):
+        return jsonify({"error": "Группа не привязана"}), 404
+    return jsonify({"status": "ok"}), 200
+
+@bp.route('/api/telegram/chats/<int(signed=True):chat_id>/test', methods=['POST'])
+@auth.admin_required
+def telegram_test(chat_id):
+    if not admin_store.find_chat(chat_id):
+        return jsonify({"error": "Группа не привязана"}), 404
+
+    error = telegram_bot.send_test(chat_id)
+    if error:
+        return jsonify({"error": f"Telegram не принял сообщение: {error}"}), 502
     return jsonify({"status": "ok"}), 200
