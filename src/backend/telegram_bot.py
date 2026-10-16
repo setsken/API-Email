@@ -459,7 +459,8 @@ def notify_email(email: dict):
     if folder:
         lines.append(f"📁 {_esc(folder['name'])}")
     lines.append(f"✉️ {_esc(email.get('From'))}")
-    lines.append(f"📝 {_esc(email.get('Subject'))}")
+    if (email.get('Subject') or '').strip():
+        lines.append(f"📝 {_esc(email.get('Subject'))}")
 
     for chat in chats:
         _send(chat["id"], "\n".join(lines))
