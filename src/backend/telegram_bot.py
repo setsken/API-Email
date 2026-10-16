@@ -1,5 +1,6 @@
 import hashlib
 import html
+import itertools
 import logging
 import re
 import secrets
@@ -19,6 +20,7 @@ LINK_MAX_FAILURES = 5        # wrong /link codes a chat may send per LINK_CODE_T
 PENDING_ADD_TTL = 3600       # folder buttons under an /add stay usable for an hour
 LIST_LIMIT = 50              # addresses shown per folder in /list
 MESSAGE_LIMIT = 4000         # Telegram allows 4096 characters per message
+WEBHOOK_RETRY_DELAYS = [3, 10, 30, 60, 120, 300]  # seconds between webhook registration attempts
 
 # Text of the question the bot asks after a bare /add; replies to it are the address
 ADD_PROMPT = "Какой адрес добавить? Ответьте на это сообщение адресом"
@@ -105,11 +107,23 @@ def start():
         return
 
     def setup():
-        result, error = _request("setWebhook", url=f"{config.PUBLIC_URL}/telegram/webhook", secret_token=webhook_secret(),
-                                 allowed_updates=["message", "callback_query"])
-        _bot["webhook"] = bool(result)
-        _bot["webhook_error"] = error
-        logger.info("Telegram webhook %s", "registered" if result else f"NOT registered: {error}")
+        # right after the container starts its network may not be up yet,
+        # so keep retrying: quickly at first, then every few minutes
+        for attempt in itertools.count():
+            result, error = _request("setWebhook", url=f"{config.PUBLIC_URL}/telegram/webhook", secret_token=webhook_secret(),
+                                     allowed_updates=["message", "callback_query"])
+            if result:
+                break
+
+            delay = WEBHOOK_RETRY_DELAYS[min(attempt, len(WEBHOOK_RETRY_DELAYS) - 1)]
+            _bot["webhook"] = False
+            _bot["webhook_error"] = f"{error} (повтор через {delay} с)"
+            logger.warning("Telegram webhook NOT registered, retrying in %ss: %s", delay, error)
+            time.sleep(delay)
+
+        _bot["webhook"] = True
+        _bot["webhook_error"] = None
+        logger.info("Telegram webhook registered")
         _call("setMyCommands", commands=COMMANDS)
         bot_info()
 
