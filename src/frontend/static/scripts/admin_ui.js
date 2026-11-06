@@ -152,10 +152,14 @@ const UI = (() => {
         });
     }
 
-    // copy text; with a label the button shows it for a moment, otherwise it only changes colour
+    // copy text; with a label the button shows it for a moment, otherwise it only
+    // changes colour. Without a button a toast says it worked
     function copy(text, button, label) {
         const done = () => {
-            if (!button) return;
+            if (!button) {
+                toast('Скопировано', 'ok');
+                return;
+            }
             const original = label ? button.textContent : null;
             button.classList.add('copied');
             if (label) button.textContent = label;
@@ -172,18 +176,22 @@ const UI = (() => {
         navigator.clipboard.writeText(text).then(done).catch(() => toast('Браузер не дал скопировать, выделите текст вручную', 'error'));
     }
 
-    // popup menu next to a button. items: {label, icon, onClick, danger, disabled}, {caption} or {separator}
+    // popup menu next to a button, or at a point {x, y} for a right click.
+    // items: {label, icon, onClick, danger, disabled}, {title}, {caption} or {separator}
     let closeOpenMenu = null;
 
-    function menu(anchor, items) {
+    function menu(anchor, items, onClose) {
         if (closeOpenMenu) closeOpenMenu();
 
         const node = el('div', 'menu');
         node.setAttribute('role', 'menu');
+        node.addEventListener('contextmenu', event => event.preventDefault());
 
         items.forEach(item => {
             if (item.separator) {
                 node.append(el('div', 'menu-separator'));
+            } else if (item.title) {
+                node.append(el('div', 'menu-title', item.title));
             } else if (item.caption) {
                 node.append(el('div', 'menu-caption', item.caption));
             } else {
@@ -203,11 +211,15 @@ const UI = (() => {
 
         document.body.append(node);
 
-        // below the button if it fits, otherwise above it; never off the screen
-        const box = anchor.getBoundingClientRect();
+        // below if it fits, otherwise above; never off the screen. From a button it
+        // grows to the left of the button's edge, from the pointer to the right of it
+        const atPoint = !(anchor instanceof Element);
+        const box = atPoint ? { left: anchor.x, right: anchor.x, top: anchor.y, bottom: anchor.y } : anchor.getBoundingClientRect();
         const { offsetWidth: width, offsetHeight: height } = node;
-        node.style.left = `${Math.max(8, Math.min(box.right - width, window.innerWidth - width - 8))}px`;
-        node.style.top = `${box.bottom + height + 8 < window.innerHeight ? box.bottom + 4 : Math.max(8, box.top - height - 4)}px`;
+        const below = box.bottom + height + 8 < window.innerHeight;
+        node.style.left = `${Math.max(8, Math.min(atPoint ? box.left : box.right - width, window.innerWidth - width - 8))}px`;
+        node.style.top = `${below ? box.bottom + (atPoint ? 0 : 4) : Math.max(8, box.top - height - (atPoint ? 0 : 4))}px`;
+        node.style.transformOrigin = `${atPoint ? 'left' : 'right'} ${below ? 'top' : 'bottom'}`;
 
         const onDown = event => {
             if (!node.contains(event.target)) close();
@@ -222,6 +234,7 @@ const UI = (() => {
             window.removeEventListener('resize', close);
             node.remove();
             closeOpenMenu = null;
+            if (onClose) onClose();
         }
 
         document.addEventListener('mousedown', onDown, true);

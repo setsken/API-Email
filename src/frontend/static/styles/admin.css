@@ -606,6 +606,15 @@
     background-color: var(--primary-soft);
 }
 
+/* its menu is open */
+.addr.menu-open {
+    background-color: var(--surface-3);
+}
+
+.mail-to.menu-open .mail-address {
+    color: var(--primary-text);
+}
+
 .addr-main {
     flex: 1;
     min-width: 0;
@@ -674,8 +683,13 @@
     background: linear-gradient(to right, transparent, #2d2340 0.875rem);
 }
 
+.addr.menu-open .addr-actions {
+    background: linear-gradient(to right, transparent, var(--surface-3) 0.875rem);
+}
+
 .addr:hover .addr-actions,
-.addr:focus-within .addr-actions {
+.addr:focus-within .addr-actions,
+.addr.menu-open .addr-actions {
     opacity: 1;
     pointer-events: auto;
 }
@@ -1266,6 +1280,19 @@
 
 .menu-item.danger {
     color: var(--danger);
+}
+
+/* the address the menu is about */
+.menu-title {
+    padding: 0.35rem 0.6rem 0.45rem;
+    margin-bottom: 0.25rem;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .menu-caption {

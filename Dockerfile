@@ -15,5 +15,6 @@ EXPOSE 5000
 ENV MALLOC_ARENA_MAX=2
 
 # Railway passes the port in $PORT; a shell is needed to expand it.
-# A failed migration must not stop the server: the old file stays for the next start
-CMD ["sh", "-c", "python migrate_inbox.py; exec gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 1 --threads 8 --timeout 120 src.backend.flask_app:app"]
+# A failed migration must not stop the server: the old file stays for the next start.
+# -u: its messages reach the logs right away
+CMD ["sh", "-c", "python -u migrate_inbox.py; exec gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 1 --threads 8 --timeout 120 src.backend.flask_app:app"]

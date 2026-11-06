@@ -187,7 +187,7 @@ The panel has two columns: addresses on the left (with search and their own scro
 
 **Only codes and links are kept.** An email with neither is dropped on arrival, everywhere, including the temporary mail page; each drop is logged with its sender and subject, and the email itself stays in Resend. The exception is an email whose body could not be loaded from Resend: it is kept, so that a failure shows up in the panel instead of mail silently vanishing.
 
-Addresses are grouped into folders: the tabs at the top switch between all addresses and a single folder. An address added while a folder is open goes into it; the menu on each address changes its note, moves it or removes it. Deleting a folder keeps its addresses, just without a folder.
+Addresses are grouped into folders: the tabs at the top switch between all addresses and a single folder. An address added while a folder is open goes into it; the menu of an address (the three dots or a right click on it) copies it, changes its note, moves it or removes it. Deleting a folder keeps its addresses, just without a folder.
 
 The switch in the top bar changes the view: **Панель**, **Сплит** (temporary mail on the left, the panel on the right) and **Почта** (temporary mail only).
 

@@ -217,6 +217,19 @@ def migrate_json_inbox() -> int:
                     _insert(conn, email)
                     count += 1
 
-    # the emails are in the database now; the file is kept as a backup
-    os.replace(config.INBOX_FILE_NAME, config.INBOX_FILE_NAME + ".migrated")
+    # the emails are in the database now, and they are temporary anyway
+    os.remove(config.INBOX_FILE_NAME)
     return count
+
+# Deletes what earlier versions left of the old inbox.json: the backup made when
+# moving it into the database, and a temp file. Returns True if there was a backup
+def remove_old_inbox_backup() -> bool:
+    backup = config.INBOX_FILE_NAME + ".migrated"
+    temp_file = config.INBOX_FILE_NAME + ".tmp"
+    had_backup = os.path.exists(backup)
+
+    for leftover in (backup, temp_file):
+        if os.path.exists(leftover):
+            os.remove(leftover)
+
+    return had_backup

@@ -88,11 +88,12 @@ const Addresses = (() => {
         count.title = 'Писем на адрес';
 
         const copyBtn = UI.iconButton('copy', 'Скопировать адрес', () => UI.copy(row.dataset.key, copyBtn));
-        const moreBtn = UI.iconButton('more', 'Действия', () => openMenu(row.dataset.key, moreBtn));
+        const moreBtn = UI.iconButton('more', 'Действия', () => openMenu(row.dataset.key, moreBtn, row));
         const actions = UI.el('div', 'addr-actions');
         actions.append(copyBtn, moreBtn);
 
         row.append(main, count, actions);
+        menuOnRightClick(row, () => row.dataset.key);
         updateRow(row, entry);
         return row;
     }
@@ -119,11 +120,24 @@ const Addresses = (() => {
         count.classList.toggle('zero', entry.count === 0);
     }
 
-    function openMenu(address, anchor) {
+    // A right click on this element opens the address menu at the pointer
+    function menuOnRightClick(node, getAddress) {
+        node.addEventListener('contextmenu', event => {
+            event.preventDefault();
+            openMenu(getAddress(), { x: event.clientX, y: event.clientY }, node);
+        });
+    }
+
+    // the menu of an address, at a button or a point; node stays marked while it's open
+    function openMenu(address, anchor, node) {
         const entry = Panel.addressIndex.get(address);
         if (!entry) return;
 
-        const items = [{ label: entry.note ? 'Изменить заметку' : 'Добавить заметку', icon: 'edit', onClick: () => editNote(entry) }];
+        const items = [
+            { title: entry.address },
+            { label: 'Скопировать адрес', icon: 'copy', onClick: () => UI.copy(entry.address) },
+            { label: entry.note ? 'Изменить заметку' : 'Добавить заметку', icon: 'edit', onClick: () => editNote(entry) },
+        ];
 
         const targets = Panel.me.is_owner ? [...Panel.folders, { id: null, name: 'Без папки' }] : Panel.folders;
         if (targets.length > 1) {
@@ -139,7 +153,8 @@ const Addresses = (() => {
         }
 
         items.push({ separator: true }, { label: 'Убрать из списка', icon: 'trash', danger: true, onClick: () => remove(entry) });
-        UI.menu(anchor, items);
+        UI.menu(anchor, items, () => node.classList.remove('menu-open'));
+        node.classList.add('menu-open');
     }
 
     // add an address from the form; one that is already listed moves into the folder
@@ -206,5 +221,5 @@ const Addresses = (() => {
         }
     }
 
-    return { init, render };
+    return { init, render, menuOnRightClick };
 })();

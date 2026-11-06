@@ -54,6 +54,7 @@ const Feed = (() => {
         main.setAttribute('aria-expanded', 'false');
         const to = UI.el('span', 'mail-to');
         to.append(UI.el('span', 'mail-address', email.To), UI.el('span', 'mail-note'));
+        Addresses.menuOnRightClick(to, () => email.To);
         main.append(to, UI.el('div', 'mail-sub', [email.From, email.Subject].filter(Boolean).join(' · ')));
 
         const side = UI.el('div', 'mail-side');
