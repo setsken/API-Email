@@ -12,7 +12,6 @@ const Panel = {
 
     activeFolder: null,  // open folder id (kept in the url as #folder=...), null for all
     activeAddress: null, // address the feed is narrowed to, null for all
-    usefulOnly: false,   // feed shows only emails with a code or a link
     wantTelegram: false,
 
     // call the panel api, reload to the login page if the session is gone
@@ -37,7 +36,7 @@ const Panel = {
     },
 
     viewKey() {
-        return `${this.activeFolder}|${this.activeAddress}|${this.usefulOnly}`;
+        return `${this.activeFolder}|${this.activeAddress}`;
     },
 
     // load folders, addresses and the emails of the current view
@@ -46,7 +45,6 @@ const Panel = {
         const params = new URLSearchParams();
         if (this.activeFolder) params.set('folder', this.activeFolder);
         if (this.activeAddress) params.set('address', this.activeAddress);
-        if (this.usefulOnly) params.set('useful', '1');
         if (this.wantTelegram) params.set('telegram', '1');
 
         try {
@@ -123,11 +121,6 @@ const Panel = {
     // show emails for one address only, or for all with null
     setAddressFilter(address) {
         this.activeAddress = address;
-        this.showNewView();
-    },
-
-    setUsefulOnly(value) {
-        this.usefulOnly = value;
         this.showNewView();
     },
 

@@ -9,7 +9,7 @@ Authorization: Bearer mdk_your_key
 `X-API-Key: mdk_your_key` works too. All times are Unix seconds.
 
 ### Messages
-The newest emails with a code or a link, newest first.
+The newest emails, newest first. Each has a code or a verification link: the service doesn't keep other emails.
 ```http
 GET /api/v1/messages?address=you@yourdomain.com&since=1793980000&limit=1
 ```
@@ -19,7 +19,6 @@ GET /api/v1/messages?address=you@yourdomain.com&since=1793980000&limit=1
 | `folder`  | Only emails of this folder (its `id`). |
 | `since`   | Only emails received at this time or later. |
 | `limit`   | How many to return, 1 to 100, 20 by default. |
-| `all`     | `1` also returns emails with neither a code nor a link. |
 
 **Response**
 ```json

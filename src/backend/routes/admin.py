@@ -54,8 +54,8 @@ def _visible_entry(address: str, state: dict = None):
 
 # Folders, addresses with their email counts and the emails sent to them, newest
 # first; all of it limited to what this account may see. ?folder= and ?address=
-# narrow down the emails, ?useful=1 keeps only those with a code or a link,
-# ?telegram=1 adds the Telegram groups (only asked while that drawer is open)
+# narrow down the emails, ?telegram=1 adds the Telegram groups (only asked while
+# that drawer is open)
 @bp.route('/api/feed')
 @auth.panel_required
 def feed():
@@ -80,7 +80,7 @@ def feed():
     addresses.sort(key=lambda a: a.get('added', 0), reverse=True)
 
     # without bodies: the page asks for a body when an email is opened
-    emails = inbox_handler.list_emails(shown, FEED_LIMIT, only_useful=request.args.get('useful') == '1')
+    emails = inbox_handler.list_emails(shown, FEED_LIMIT)
 
     response = {"folders": auth.visible_folders(g.user, state), "addresses": addresses, "emails": emails}
     if request.args.get('telegram') == '1':

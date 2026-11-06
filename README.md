@@ -185,6 +185,8 @@ Open `/admin` and log in with a password: `ADMIN_PASSWORD` for the owner, or a p
 
 The panel has two columns: addresses on the left (with search and their own scrolling), emails on the right, newest first and refreshed every 5 seconds. One-time codes and verification links are detected and shown in front of each email; click a code to copy it. Click an address to see only its emails. The trash icon next to an email deletes it for good. When the panel is narrow (a phone, the split screen) the columns become tabs.
 
+**Only codes and links are kept.** An email with neither is dropped on arrival, everywhere, including the temporary mail page; each drop is logged with its sender and subject, and the email itself stays in Resend. The exception is an email whose body could not be loaded from Resend: it is kept, so that a failure shows up in the panel instead of mail silently vanishing.
+
 Addresses are grouped into folders: the tabs at the top switch between all addresses and a single folder. An address added while a folder is open goes into it; the menu on each address changes its note, moves it or removes it. Deleting a folder keeps its addresses, just without a folder.
 
 The switch in the top bar changes the view: **Панель**, **Сплит** (temporary mail on the left, the panel on the right) and **Почта** (temporary mail only).
@@ -205,7 +207,7 @@ The bot posts one-time codes (or the verification link, when an email has no cod
 2. In the admin panel open **Telegram** → **Привязать группу**, add the bot to the group, and send the shown `/link` command there. The bot doesn't need admin rights: commands addressed to it (`/add@bot ...`), replies to its messages and its buttons always reach it. Only an address sent as a plain message right after a bare `/add` (without "reply") needs the bot to be an admin.
 3. Tick the folders the group gets codes for. Each group only sees its own folders.
 
-Commands in a linked group: `/add name@domain [note]` (the bot asks which folder), `/remove name@domain`, `/list`, `/help`. Emails without a code or a verification link are not posted.
+Commands in a linked group: `/add name@domain [note]` (the bot asks which folder), `/remove name@domain`, `/list`, `/help`.
 
 **Railway and Telegram:** Telegram blocks some of Railway's IP ranges, so calls to `api.telegram.org` can time out (the Telegram panel in the admin shows the last error). The fix is a Cloudflare Worker that forwards the calls: deploy [docs/telegram-proxy-worker.js](docs/telegram-proxy-worker.js) as a worker and set `TELEGRAM_API_URL` to its address.
 

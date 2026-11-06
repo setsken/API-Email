@@ -113,8 +113,7 @@ def addresses():
     }), 200
 
 # The newest emails with a code or a link, newest first. ?address= or ?folder=
-# narrow them down, ?since= keeps those received at that time or later, ?all=1
-# also returns emails with neither a code nor a link
+# narrow them down, ?since= keeps those received at that time or later
 @bp.route('/messages')
 def messages():
     try:
@@ -139,8 +138,7 @@ def messages():
             return _error("address_not_found", "Нет такого адреса в папках ключа", 404)
         wanted = [address]
 
-    only_useful = request.args.get('all') != '1'
-    emails = inbox_handler.list_emails(wanted, limit, only_useful=only_useful, since=since)
+    emails = inbox_handler.list_emails(wanted, limit, only_useful=True, since=since)
 
     return jsonify({"messages": [_message(e) for e in emails], "server_time": int(time.time())}), 200
 

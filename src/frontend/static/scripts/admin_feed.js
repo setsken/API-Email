@@ -3,7 +3,6 @@ const Feed = (() => {
     const list = document.getElementById('feed-list');
     const placeholder = document.getElementById('feed-placeholder');
     const filterChip = document.getElementById('filter-chip');
-    const usefulToggle = document.getElementById('useful-only');
 
     const openIds = new Set(); // expanded emails stay open across refreshes
     const bodies = new Map();  // bodies of the emails opened so far, by email id
@@ -11,18 +10,6 @@ const Feed = (() => {
 
     function init() {
         filterChip.addEventListener('click', () => Panel.setAddressFilter(null));
-
-        try {
-            Panel.usefulOnly = localStorage.getItem('maildrop-useful-only') === '1';
-        } catch (e) {}
-        usefulToggle.checked = Panel.usefulOnly;
-
-        usefulToggle.addEventListener('change', () => {
-            try {
-                localStorage.setItem('maildrop-useful-only', usefulToggle.checked ? '1' : '');
-            } catch (e) {}
-            Panel.setUsefulOnly(usefulToggle.checked);
-        });
     }
 
     // a different view is coming: nothing on screen counts as seen
@@ -50,11 +37,10 @@ const Feed = (() => {
 
     function emptyText() {
         if (Panel.visibleAddresses().length === 0) {
-            return Panel.activeFolder ? 'Добавьте адреса в эту папку, и письма на них появятся здесь.' : 'Здесь будут письма на адреса из списка.';
+            return Panel.activeFolder ? 'Добавьте адреса в эту папку, и коды с них появятся здесь.' : 'Здесь будут коды и ссылки с адресов из списка.';
         }
-        if (Panel.usefulOnly) return 'Писем с кодом пока нет.';
-        if (Panel.activeAddress) return 'На этот адрес писем пока нет.';
-        return 'Писем пока нет. Новые появятся здесь автоматически.';
+        if (Panel.activeAddress) return 'На этот адрес кодов и ссылок пока не приходило.';
+        return 'Кодов и ссылок пока нет. Новые появятся здесь автоматически.';
     }
 
     function buildRow(email) {
@@ -127,7 +113,8 @@ const Feed = (() => {
             link.append(UI.icon('link'), document.createTextNode('Ссылка'));
             box.append(link);
         } else {
-            box.append(UI.el('span', 'no-code', 'нет кода'));
+            // only an email whose body failed to load gets here
+            box.append(UI.el('span', 'no-code', 'не загрузилось'));
         }
 
         return box;

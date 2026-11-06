@@ -198,6 +198,9 @@ def process_received_email(data):
                     + '</pre>'
                 )
 
+    # without a body there is no telling if the email has a code, so it's kept
+    # and shows up in the panel; every other email without a code is dropped
+    body_loaded = bool(body)
     if not body:
         body = '<p style="color:#999;">Could not load email content</p>'
 
@@ -214,7 +217,10 @@ def process_received_email(data):
             "ContentType": content_type
         }
 
-        inbox_handler.recv_email(email_json)
+        if not inbox_handler.recv_email(email_json, keep_without_code=not body_loaded):
+            _log(f"Email dropped, no code or link: {from_addr} -> {to_addr}, subject: {subject}")
+            continue
+
         _log(f"Email saved: {from_addr} -> {to_addr}, body length: {len(body)}")
 
         # a failed Telegram message must not stop the other recipients

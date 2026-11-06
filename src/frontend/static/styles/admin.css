@@ -725,57 +725,6 @@
     white-space: nowrap;
 }
 
-.switch {
-    display: inline-flex;
-    flex-shrink: 0;
-    align-items: center;
-    gap: 0.45rem;
-    color: var(--muted);
-    font-size: 0.8rem;
-    cursor: pointer;
-    user-select: none;
-}
-
-.switch input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-}
-
-.switch-track {
-    position: relative;
-    width: 30px;
-    height: 17px;
-    background-color: var(--surface-3);
-    border-radius: 999px;
-    transition: background-color 0.25s ease;
-}
-
-.switch-track::after {
-    content: "";
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 13px;
-    height: 13px;
-    background-color: #fff;
-    border-radius: 50%;
-    transition: transform 0.3s var(--ease);
-}
-
-.switch input:checked + .switch-track {
-    background-color: var(--primary);
-}
-
-.switch input:checked + .switch-track::after {
-    transform: translateX(13px);
-}
-
-.switch input:focus-visible + .switch-track {
-    outline: 2px solid var(--primary-text);
-    outline-offset: 2px;
-}
-
 .mail {
     margin: 0 0.5rem;
     border-bottom: 1px solid var(--border);
@@ -1019,9 +968,6 @@
         min-width: 110px;
     }
 
-    .no-code {
-        display: none;
-    }
 }
 
 /* the panel is narrow: tabs instead of two columns */
@@ -1034,8 +980,9 @@
         grid-template-columns: minmax(0, 1fr);
     }
 
-    /* the tab already says it */
-    .col-feed .col-head h2 {
+    /* the tab already says it; the row stays only for the address filter */
+    .col-feed .col-head h2,
+    .col-feed .col-head:has(.filter-chip[hidden]) {
         display: none;
     }
 

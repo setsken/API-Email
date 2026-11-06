@@ -62,6 +62,20 @@ def _add_link_column(conn: sqlite3.Connection):
 
     conn.execute("DROP TABLE emails_old")
 
+# The service is only for codes and links: drops the emails stored before it kept
+# nothing else. Their code and link are looked for again, detection has improved
+def _drop_emails_without_code(conn: sqlite3.Connection):
+    ids = [row["id"] for row in conn.execute("SELECT id FROM emails WHERE code IS NULL AND link IS NULL")]
+
+    for email_id in ids:
+        row = conn.execute("SELECT subject, body FROM emails WHERE id = ?", (email_id,)).fetchone()
+        code = extract_code(row["subject"], row["body"])
+        link = extract_link(row["subject"], row["body"])
+        if code or link:
+            conn.execute("UPDATE emails SET code = ?, link = ? WHERE id = ?", (code, link, email_id))
+        else:
+            conn.execute("DELETE FROM emails WHERE id = ?", (email_id,))
+
 with _db() as _conn:
     _conn.execute("BEGIN IMMEDIATE")
     _columns = [row["name"] for row in _conn.execute("PRAGMA table_info(emails)")]
@@ -69,6 +83,11 @@ with _db() as _conn:
         _add_link_column(_conn)
     else:
         _create_tables(_conn)
+
+    # runs once per database: later on only emails that failed to load lack a code
+    if _conn.execute("PRAGMA user_version").fetchone()[0] < 1:
+        _drop_emails_without_code(_conn)
+        _conn.execute("PRAGMA user_version = 1")
 
 # A database row as the email dictionary the rest of the app and the API use
 def _to_email(row: sqlite3.Row) -> dict:
@@ -106,19 +125,27 @@ def _trim(conn: sqlite3.Connection):
         conn.execute("DELETE FROM emails WHERE id IN (SELECT id FROM emails ORDER BY timestamp"
                      " LIMIT (SELECT COUNT(*) / 10 + 1 FROM emails))")
 
-# Adds a new email to the inbox
-def recv_email(email_json: dict):
+# Adds a new email to the inbox, if it has a code or a link: the service exists
+# for those and keeps nothing else. keep_without_code is for an email whose body
+# failed to load, so that a failure shows up instead of emails silently vanishing.
+# Returns False if the email was not kept
+def recv_email(email_json: dict, keep_without_code: bool = False) -> bool:
     if not email_json.get("To"):
-        return
+        return False
+
+    email_json["Code"] = extract_code(email_json.get("Subject"), email_json.get("Body"))
+    email_json["Link"] = extract_link(email_json.get("Subject"), email_json.get("Body"))
+    if not email_json["Code"] and not email_json["Link"] and not keep_without_code:
+        return False
 
     # Lets the admin panel point at this exact email, e.g. to delete it
     email_json.setdefault("Id", uuid.uuid4().hex)
-    email_json["Code"] = extract_code(email_json.get("Subject"), email_json.get("Body"))
-    email_json["Link"] = extract_link(email_json.get("Subject"), email_json.get("Body"))
 
     with _db() as conn:
         _trim(conn)
         _insert(conn, email_json)
+
+    return True
 
 # All emails of one address with their bodies, oldest first
 def get_inbox(address: str) -> list:
@@ -127,8 +154,8 @@ def get_inbox(address: str) -> list:
     return [_to_email(row) for row in rows]
 
 # The newest emails of these addresses without their bodies, newest first.
-# only_useful leaves out emails with neither a code nor a link, since keeps
-# emails received at that unix time or later
+# only_useful leaves out emails that failed to load and have no code or link,
+# since keeps emails received at that unix time or later
 def list_emails(addresses: list, limit: int, only_useful: bool = False, since: int = None) -> list:
     if not addresses:
         return []
@@ -174,6 +201,7 @@ def migrate_json_inbox() -> int:
     if not os.path.exists(config.INBOX_FILE_NAME):
         return 0
 
+    # the emails with a code or a link move over, see recv_email
     with open(config.INBOX_FILE_NAME, "r", encoding="utf-8") as f:
         inbox = json.load(f)
 
@@ -185,8 +213,9 @@ def migrate_json_inbox() -> int:
                 email.setdefault("Id", uuid.uuid4().hex)
                 email["Code"] = extract_code(email.get("Subject"), email.get("Body"))
                 email["Link"] = extract_link(email.get("Subject"), email.get("Body"))
-                _insert(conn, email)
-                count += 1
+                if email["Code"] or email["Link"]:
+                    _insert(conn, email)
+                    count += 1
 
     # the emails are in the database now; the file is kept as a backup
     os.replace(config.INBOX_FILE_NAME, config.INBOX_FILE_NAME + ".migrated")
