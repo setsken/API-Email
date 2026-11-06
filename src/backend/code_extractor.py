@@ -67,8 +67,14 @@ _NOTIFICATION = re.compile(
 )
 # ...unless the subject itself asks to confirm something: "Verify your new device"
 _ASKS_TO_CONFIRM = re.compile(r"(?i)verif|confirm|подтвержд")
+# A creator changed a subscription's price. These do ask to confirm, with a button
+# and maybe in the subject, but that is about paying and not about an account
+_PRICE_CHANGE = re.compile(
+    r"(?i)subscription price|\bnew price\b|\bprice (?:change|increase)|\bchanged?\b.{0,30}?\bprice\b|\bkeep supporting\b"
+    r"|\b(?:цен\w*|стоимост\w*) подписки|\bнов\w+ цен\w+|\bизменил\w* (?:цену|стоимость)|\bизменени\w+ цен\w+|\bпродолж\w+ поддерживать"
+)
 
-_URL = re.compile(r"https?://[^\s\"'<>]+")
+_URL =re.compile(r"https?://[^\s\"'<>]+")
 _ANCHOR = re.compile(r"""(?is)<a\b[^>]*?\bhref\s*=\s*["']([^"']+)["'][^>]*>(.*?)</a>""")
 
 # A link or button that confirms something: /emailverify/..., "Подтвердить почту"
@@ -88,7 +94,10 @@ def html_to_text(body: str) -> str:
     return html.unescape(body)
 
 def _is_notification(subject: str, text: str) -> bool:
-    return not _ASKS_TO_CONFIRM.search(subject) and bool(_NOTIFICATION.search(f"{subject}\n{text}"))
+    content = f"{subject}\n{text}"
+    if _PRICE_CHANGE.search(content):
+        return True
+    return not _ASKS_TO_CONFIRM.search(subject) and bool(_NOTIFICATION.search(content))
 
 # The first match of the first pattern that matches, without the spaces and dashes inside
 def _first_code(patterns: list, *sources):
