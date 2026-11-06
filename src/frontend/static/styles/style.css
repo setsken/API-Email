@@ -1,20 +1,39 @@
-@import url("https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 
-/* main colour scheme and font for site */
+/* colours, fonts and shapes of the whole site */
 :root {
-    --bg-color: #161319; /* background */
-    --surface-color: #0e0d0f; /* boxes background */
-    --primary-color: #64317f; /* primary accent */
-    --primary-hover-color: #784097; /* primary color when hovered */
-    --secondary-color: #332e36; /* secondary color */
-    --secondary-hover-color: #4b474d; /* secondary color when hovered */
-    --text-color: #f7ebff; /* text colour */
-    --text-dark-color: #736b78; /* darker text */
-    --border-color: #272329; /* border of boxes */
-    --input-color: #0d0b0f; /* email display */
-    --container-radius: 8px; /* border radius */
-    --content-radius: 5px; /* border radius */
-    --font-family: 'Roboto Mono', monospace; /* cool font */
+    color-scheme: dark;
+
+    --bg: #100e14;
+    --surface: #17141c;
+    --surface-2: #1f1b26;
+    --surface-3: #2a2533;
+    --border: #2b2633;
+    --border-strong: #3d3648;
+
+    --text: #f3eefb;
+    --muted: #a79fb2;
+    --faint: #7d7589;
+
+    --primary: #7247d6;
+    --primary-hover: #8358e6;
+    --primary-soft: rgba(131, 88, 230, 0.16);
+    --primary-text: #c4adff;
+
+    --success: #4ade80;
+    --success-soft: rgba(74, 222, 128, 0.14);
+    --danger: #f87171;
+    --danger-soft: rgba(248, 113, 113, 0.14);
+    --warning: #fbbf24;
+
+    --radius-lg: 14px;
+    --radius: 10px;
+    --radius-sm: 7px;
+
+    --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Roboto Mono', ui-monospace, monospace;
+
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 * {
@@ -23,32 +42,141 @@
     padding: 0;
 }
 
-/* set global propeties */
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
 body {
-    font-family: var(--font-family);
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    line-height: 1.6;
+    font-family: var(--font);
+    background-color: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+    color: inherit;
+}
+
+:focus-visible {
+    outline: 2px solid var(--primary-text);
+    outline-offset: 2px;
+}
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--surface-3) transparent;
+}
+
+/* buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s var(--ease);
+}
+
+.btn:active {
+    transform: scale(0.97);
+}
+
+.btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.btn img {
+    width: 16px;
+    height: 16px;
+    filter: brightness(0) invert(1);
+}
+
+.btn-primary {
+    background-color: var(--primary);
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+}
+
+.btn-secondary {
+    background-color: var(--surface-2);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+.btn-secondary:hover {
+    background-color: var(--surface-3);
+    border-color: var(--border-strong);
+}
+
+.btn-copied,
+.btn-copied:hover {
+    background-color: var(--success-soft);
+    border-color: var(--success);
+    color: var(--success);
+}
+
+/* ---------- the temporary mail page ---------- */
+
+.temp-page {
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    min-height: 100vh;
-    padding: 2rem 1rem;
+    padding: 2.5rem 1rem;
 }
 
-/* contains entire content of site */
 .container {
     width: 100%;
-    max-width: 800px;
+    max-width: 720px;
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1.25rem;
 }
 
-/* header at the top */
 .header {
-    text-align: center;
     position: relative;
+    text-align: center;
+    padding: 0.5rem 0 0.75rem;
+}
+
+.header h1 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    font-family: var(--mono);
+    font-size: 2rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.header h1 img {
+    width: 30px;
+    height: 30px;
+    /* the svg is black, this turns it into --primary-text */
+    filter: brightness(0) saturate(100%) invert(76%) sepia(21%) saturate(1602%) hue-rotate(208deg) brightness(102%) contrast(101%);
+}
+
+.header p {
+    color: var(--muted);
+    font-size: 0.95rem;
 }
 
 /* admin panel link in the top right corner of the header */
@@ -56,75 +184,50 @@ body {
     position: absolute;
     top: 0.5rem;
     right: 0;
-    text-decoration: none;
 }
 
-/* title text */
-.header h1 {
-    font-size: 2.5rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-}
-      
-/* email icon */
-.header h1 img {
-    width: 36px;
-    height: 36px;
-    filter: invert(39%) sepia(58%) saturate(1461%) hue-rotate(225deg) brightness(91%) contrast(93%); /* stupid ai generated code to get the email icon to match the primary colour */
+.email-panel,
+.inbox-section {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    animation: riseIn 0.5s var(--ease) both;
 }
 
-/* description text */
-.header p {
-    color: var(--text-dark-color);
-    font-size: 1.1rem;
+.inbox-section {
+    animation-delay: 0.06s;
 }
 
-/* email action panel box */
 .email-panel {
-    background-color: var(--surface-color);
-    padding: 1.5rem;
-    border-radius: var(--container-radius);
-    border: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    animation: fadeIn 0.5s ease-in-out; /* plays the cool fade in animation defined at the bottom of the css */
-}
-
-/* current email text box */
-.email-display {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background-color: var(--input-color);
-    border-radius: var(--content-radius);
-    padding: 0.75rem;
-    border: 1px solid var(--border-color);
+    gap: 0.875rem;
 }
 
 /* email compose row: name input + domain dropdown */
 .email-compose {
     display: flex;
-    align-items: center;
-    gap: 0;
-    background-color: var(--input-color);
-    border-radius: var(--content-radius);
-    border: 1px solid var(--border-color);
+    align-items: stretch;
+    background-color: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
     overflow: hidden;
+    transition: border-color 0.18s ease;
+}
+
+.email-compose:focus-within {
+    border-color: var(--primary);
 }
 
 .email-compose #email-name {
     flex: 1;
+    min-width: 0;
+    padding: 0.8rem 1rem;
     background: none;
     border: none;
-    color: var(--text-color);
-    font-size: 1.1rem;
-    font-family: var(--font-family);
-    padding: 0.85rem 1rem;
-    min-width: 0;
+    font-family: var(--mono);
+    font-size: 1rem;
 }
 
 .email-compose #email-name:focus {
@@ -132,275 +235,173 @@ body {
 }
 
 .email-compose #email-name::placeholder {
-    color: var(--text-dark-color);
+    color: var(--faint);
 }
 
 .email-compose .domain-select {
-    background-color: var(--secondary-color);
-    color: var(--text-color);
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 55%;
+    padding: 0.8rem 0.75rem;
+    background-color: var(--surface-2);
     border: none;
-    border-left: 1px solid var(--border-color);
-    padding: 0.85rem 0.75rem;
-    font-family: var(--font-family);
-    font-size: 1rem;
+    border-left: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 0.9rem;
     cursor: pointer;
-    min-width: 180px;
-    max-width: 220px;
+    transition: background-color 0.18s ease;
 }
 
 .email-compose .domain-select:hover {
-    background-color: var(--secondary-hover-color);
+    background-color: var(--surface-3);
 }
 
 .email-compose .domain-select:focus {
     outline: none;
 }
 
-
-/* current email text */
-#email-input {
-    flex-grow: 1;
-    background: none;
-    border: none;
-    color: var(--text-color);
-    font-size: 1rem;
-    font-family: var(--font-family);
-}
-
-/* stop it from looking weird when you click the email */
-#email-input:focus {
-    outline: none;
-}
-
-/* action button container */
 .action-buttons {
     display: flex;
-    gap: 0.75rem;
     flex-wrap: wrap;
-}
-
-/* action buttons */
-.btn {
-    padding: 0.75rem 1.25rem;
-    border: none;
-    border-radius: var(--content-radius);
-    font-family: var(--font-family);
-    font-size: 0.9rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s ease, transform 0.2s ease;
-    display: flex;
-    align-items: center;
     gap: 0.5rem;
 }
 
-/* button icons */
-.btn img {
-    width: 16px;
-    height: 16px;
-    filter: brightness(0) invert(1);
+#refresh-btn.loading img {
+    animation: spin 0.9s linear infinite;
 }
 
-/* primary button (generate email) */
-.btn-primary {
-    background-color: var(--primary-color);
-    color: white;
-}
-
-/* hover effect */
-.btn-primary:hover {
-    background-color: var(--primary-hover-color);
-    transform: translateY(-2px);
-}
-
-/* secondary buttons */
-.btn-secondary {
-    background-color: var(--secondary-color);
-    color: var(--text-color);
-}
-        
-/* hover effect */
-.btn-secondary:hover {
-    background-color: var(--secondary-hover-color);
-    transform: translateY(-2px);
-}
-
-/* inbox display box */
-.inbox-section {
-    background-color: var(--surface-color);
-    padding: 1.5rem;
-    border-radius: var(--container-radius);
-    border: 1px solid var(--border-color);
-    animation: fadeIn 0.7s ease-in-out;
-}
-
-/* inbox box title and refresh button container */
 .inbox-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.75rem;
 }
 
-/* inbox box title */
 .inbox-header h2 {
-    font-size: 1.5rem;
+    font-size: 1.05rem;
     font-weight: 600;
 }
- 
-/* refresh inbox button */
-#refresh-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 50%;
-    transition: background-color 0.2s ease, transform 0.3s ease;
-}
-     
-/* refresh inbox button icon */
-#refresh-btn img {
-    width: 20px;
-    height: 20px;
-    transition: filter 0.2s ease;
-    filter: brightness(0) invert(1);
-}
 
-/* refresh button hover */
-#refresh-btn:hover {
-    background-color: #333;
-}
-
-/* spin effect when refreshing */
-#refresh-btn.loading img {
-    animation: spin 1s linear infinite;
-}
-
-/* list of emails */
 #inbox-list {
     list-style: none;
 }
 
-/* placeholder when no emails present */
 #inbox-placeholder {
     text-align: center;
-    padding: 2rem;
-    color: var(--text-dark-color);
+    padding: 2rem 1rem;
+    color: var(--muted);
+    font-size: 0.925rem;
 }
 
-/* single email */
 .email-item {
-    border-bottom: 1px solid var(--border-color);
+    border-top: 1px solid var(--border);
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: background-color 0.18s ease;
+    animation: riseIn 0.35s var(--ease) both;
 }
 
-/* dont add line if its the last one */
-.email-item:last-child {
-    border-bottom: none;
-}
-
-/* hover over email */
 .email-item:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: var(--surface-2);
 }
 
-/* sender and subject container */
 .email-details {
     min-width: 0;
 }
 
-/* summary excluding body */
 .email-summary {
-    padding: 1rem;
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 1rem;
+    padding: 0.8rem 0.5rem;
 }
 
-/* sender text */
 .email-summary .sender {
     font-weight: 600;
+    font-size: 0.925rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-/* email subject text */
 .email-summary .subject {
-    color: var(--text-dark-color);
+    color: var(--muted);
+    font-size: 0.875rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-/* time sent text */
 .email-summary .time {
-    color: var(--text-dark-color);
-    font-size: 0.85rem;
+    color: var(--faint);
+    font-size: 0.8rem;
     text-align: right;
+    white-space: nowrap;
 }
 
-/* the body container (closed) */
+/* a closed email takes no height, opening animates to the height of its content */
 .email-body {
-    max-height: 0;
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.35s var(--ease);
+}
+
+.email-body > * {
+    min-height: 0;
     overflow: hidden;
-    transition: max-height 0.4s ease-out, padding 0.4s ease-out;
-    padding: 0 1rem;
-}
- 
-/* email body iframe */
-.email-body-iframe {
-    width: 100%;
-    height: 400px;
-    border: none;
-    border-radius: var(--content-radius);
 }
 
-/* the body container (open) */
 .email-item.open .email-body {
-    max-height: 1000px;
-    padding-bottom: 1rem;
+    grid-template-rows: 1fr;
 }
 
-/* animations */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
+.email-body-iframe {
+    display: block;
+    width: 100%;
+    height: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background-color: var(--surface-2);
 }
-        
+
+.email-item.open .email-body-iframe {
+    margin-bottom: 0.75rem;
+}
+
+/* inside the admin panel (split screen): no header, closer to the edges */
+.temp-page.embed {
+    padding: 1rem;
+}
+
+.embed .header {
+    display: none;
+}
+
+.embed .container {
+    max-width: 640px;
+}
+
+@keyframes riseIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+}
+
 @keyframes spin {
-    from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
 
-/* copied button animation */
-.btn-copied {
-    border-color: #4ade80 !important;
-    background-color: rgba(74, 222, 128, 0.15) !important;
-    color: #4ade80 !important;
-    transition: all 0.2s ease;
-}
-
-.btn-copied .button-text {
-    color: #4ade80;
-}
-
-/* mobile design */
 @media (max-width: 600px) {
-    /* make buttons turn into icons */
-    .button-text {
+    .temp-page {
+        padding: 1.25rem 0.75rem;
+    }
+
+    .admin-link {
+        padding: 0.5rem;
+    }
+
+    .admin-link .button-text {
         display: none;
     }
 
-    .action-buttons {
-        justify-content: center;
-    }
-
-    /* icon only, so it doesn't run into the title */
-    .admin-link {
-        padding: 0.5rem;
+    .action-buttons .btn {
+        flex: 1;
     }
 
     .email-compose {
@@ -408,9 +409,18 @@ body {
     }
 
     .email-compose .domain-select {
+        max-width: none;
         border-left: none;
-        border-top: 1px solid var(--border-color);
-        min-width: 100%;
-        max-width: 100%;
+        border-top: 1px solid var(--border);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-delay: 0ms !important;
+        transition-duration: 0.01ms !important;
     }
 }

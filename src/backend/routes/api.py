@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, jsonify
-from .. import inbox_handler, auth, telegram_bot
+from .. import inbox_handler, admin_store, auth, telegram_bot
 import config
 import json
 import re
@@ -127,6 +127,14 @@ def get_inbox():
 
     if re.match(config.PROTECTED_ADDRESSES, addr) and password != config.PASSWORD:
         return jsonify({"error": "Unauthorized"}), 401
+
+    # addresses in the panel are private: for anyone without access to their
+    # folder they look like any empty inbox
+    entry = admin_store.find_address(addr)
+    if entry:
+        account = auth.current_user()
+        if not account or not auth.can_see_address(account, entry):
+            return jsonify([]), 200
 
     return jsonify(inbox_handler.get_inbox(addr)), 200
 
@@ -258,15 +266,15 @@ def resend_webhook():
         _log(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
-# Debug: view raw webhook log (admin only)
+# Debug: view raw webhook log (owner only)
 @bp.route('/debug/last_webhook')
-@auth.admin_required
+@auth.owner_required
 def debug_last_webhook():
     return jsonify(_last_webhook_payload)
 
-# Debug: test fetching email content by ID (admin only)
+# Debug: test fetching email content by ID (owner only)
 @bp.route('/debug/fetch_email/<email_id>')
-@auth.admin_required
+@auth.owner_required
 def debug_fetch_email(email_id):
     result = fetch_email_content(email_id, retries=1)
     if result:

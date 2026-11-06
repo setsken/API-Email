@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maildrop API</title>
+    <meta name="description" content="Как получать коды и ссылки подтверждения из папок Maildrop через API.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/docs.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='resources/favicon.ico') }}">
+</head>
+<body class="docs">
+    <nav class="docs-nav" aria-label="Разделы">
+        <a class="docs-brand" href="#top">maildrop <span>API</span></a>
+        <a href="#start">Быстрый старт</a>
+        <a href="#auth">Авторизация</a>
+        <a href="#messages">Письма</a>
+        <a href="#message">Одно письмо</a>
+        <a href="#addresses">Адреса</a>
+        <a href="#folders">Папки</a>
+        <a href="#errors">Ошибки и лимиты</a>
+        <a href="#examples">Примеры кода</a>
+    </nav>
+
+    <main class="docs-main" id="top">
+        <h1>Maildrop API</h1>
+        <p class="lead">API отдаёт программам письма с адресов из папок: адрес, заметку к нему, код или ссылку подтверждения. Только чтение, менять через API ничего нельзя. Каждый ключ видит только свои папки.</p>
+
+        <section id="start">
+            <h2>Быстрый старт</h2>
+            <ol>
+                <li>В панели откройте раздел <b>API</b> и создайте ключ, отметив нужные папки. Ключ показывается один раз, сохраните его.</li>
+                <li>Добавьте адрес в одну из этих папок: в панели или через Telegram-бота. Письма на адреса вне папок ключа API не отдаёт.</li>
+                <li>Запросите письма этого адреса:</li>
+            </ol>
+            <pre><code>curl "{{ base_url }}/api/v1/messages?address=kayla2@purelogic.help&amp;limit=1" \
+  -H "Authorization: Bearer mdk_ваш_ключ"</code></pre>
+            <p>В ответе будет последнее письмо с кодом или ссылкой:</p>
+            <pre><code>{
+  "messages": [
+    {
+      "id": "6f1c2b9e4a7d4c0e8b1f3a5d7c9e2b40",
+      "address": "kayla2@purelogic.help",
+      "note": "Fansly #5",
+      "folder": {"id": "a1b2c3d4", "name": "Fansly"},
+      "code": "241553",
+      "link": null,
+      "from": "Fansly &lt;noreply@fansly.com&gt;",
+      "subject": "Your login code",
+      "received_at": 1793980800,
+      "received_at_iso": "2026-11-06T16:00:00Z"
+    }
+  ],
+  "server_time": 1793980805
+}</code></pre>
+        </section>
+
+        <section id="auth">
+            <h2>Авторизация</h2>
+            <p>Передавайте ключ в заголовке каждого запроса:</p>
+            <pre><code>Authorization: Bearer mdk_ваш_ключ</code></pre>
+            <p>Подойдёт и заголовок <code>X-API-Key: mdk_ваш_ключ</code>. Адрес API: <code>{{ base_url }}/api/v1</code>. Все ответы в JSON, время в секундах Unix (UTC).</p>
+        </section>
+
+        <section id="messages">
+            <h2><span class="method">GET</span> /messages</h2>
+            <p>Письма из папок ключа, самые новые первыми. По умолчанию только те, где нашёлся код или ссылка подтверждения: рассылки и уведомления сюда не попадают.</p>
+            <table>
+                <thead><tr><th>Параметр</th><th>Описание</th></tr></thead>
+                <tbody>
+                    <tr><td><code>address</code></td><td>Только письма на этот адрес.</td></tr>
+                    <tr><td><code>folder</code></td><td>Только письма из этой папки (её <code>id</code>).</td></tr>
+                    <tr><td><code>since</code></td><td>Только письма, полученные в это время или позже (Unix, секунды).</td></tr>
+                    <tr><td><code>limit</code></td><td>Сколько вернуть: от 1 до 100, по умолчанию 20.</td></tr>
+                    <tr><td><code>all</code></td><td><code>1</code> — вернуть и письма без кода и ссылки.</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Поля письма</h3>
+            <table>
+                <thead><tr><th>Поле</th><th>Описание</th></tr></thead>
+                <tbody>
+                    <tr><td><code>id</code></td><td>Идентификатор письма.</td></tr>
+                    <tr><td><code>address</code></td><td>Адрес, на который пришло письмо.</td></tr>
+                    <tr><td><code>note</code></td><td>Заметка к адресу из панели, пустая строка если её нет.</td></tr>
+                    <tr><td><code>folder</code></td><td>Папка адреса: <code>id</code> и <code>name</code>.</td></tr>
+                    <tr><td><code>code</code></td><td>Код из письма, или <code>null</code>.</td></tr>
+                    <tr><td><code>link</code></td><td>Ссылка подтверждения из письма, или <code>null</code>. В письме может быть и код, и ссылка.</td></tr>
+                    <tr><td><code>from</code></td><td>Отправитель.</td></tr>
+                    <tr><td><code>subject</code></td><td>Тема.</td></tr>
+                    <tr><td><code>received_at</code></td><td>Когда письмо получено, Unix.</td></tr>
+                    <tr><td><code>received_at_iso</code></td><td>То же в формате ISO 8601.</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Как дождаться кода</h3>
+            <p>Коды приходят не мгновенно, поэтому опрашивайте API раз в 3–5 секунд:</p>
+            <ol>
+                <li>Перед запросом кода на сайте запомните <code>server_time</code> из любого ответа API. Время вашего компьютера может отличаться от времени сервера.</li>
+                <li>Попросите сайт отправить код.</li>
+                <li>Запрашивайте <code>/messages?address=…&amp;since=…&amp;limit=1</code>, пока не появится письмо.</li>
+            </ol>
+            <p>Без <code>since</code> можно получить старый код от предыдущего письма. Письмо, полученное в ту же секунду, что и <code>since</code>, тоже попадёт в ответ, поэтому при опросе целой папки отбрасывайте уже обработанные письма по <code>id</code>.</p>
+        </section>
+
+        <section id="message">
+            <h2><span class="method">GET</span> /messages/{id}</h2>
+            <p>Одно письмо с теми же полями и его HTML в поле <code>body</code>. Пригодится, если код не распознался: письмо можно разобрать самостоятельно (найти такие письма поможет <code>/messages?all=1</code>).</p>
+        </section>
+
+        <section id="addresses">
+            <h2><span class="method">GET</span> /addresses</h2>
+            <p>Адреса из папок ключа. Параметр <code>folder</code> оставляет только одну папку.</p>
+            <pre><code>{
+  "addresses": [
+    {"address": "kayla2@purelogic.help", "note": "Fansly #5", "folder": {"id": "a1b2c3d4", "name": "Fansly"}}
+  ],
+  "server_time": 1793980805
+}</code></pre>
+        </section>
+
+        <section id="folders">
+            <h2><span class="method">GET</span> /folders</h2>
+            <p>Папки ключа и число адресов в каждой.</p>
+            <pre><code>{
+  "folders": [{"id": "a1b2c3d4", "name": "Fansly", "addresses": 4}],
+  "server_time": 1793980805
+}</code></pre>
+        </section>
+
+        <section id="errors">
+            <h2>Ошибки и лимиты</h2>
+            <p>При ошибке в ответе есть поля <code>error</code> (код) и <code>message</code> (описание).</p>
+            <table>
+                <thead><tr><th>Статус</th><th><code>error</code></th><th>Когда</th></tr></thead>
+                <tbody>
+                    <tr><td>400</td><td><code>bad_request</code></td><td>Неверное значение <code>limit</code> или <code>since</code>.</td></tr>
+                    <tr><td>401</td><td><code>invalid_api_key</code></td><td>Нет ключа, ключ неверный или удалён.</td></tr>
+                    <tr><td>404</td><td><code>address_not_found</code></td><td>Адреса нет в папках ключа.</td></tr>
+                    <tr><td>404</td><td><code>folder_not_found</code></td><td>Папки нет среди папок ключа.</td></tr>
+                    <tr><td>404</td><td><code>message_not_found</code></td><td>Письма нет в папках ключа.</td></tr>
+                    <tr><td>429</td><td><code>rate_limited</code></td><td>Больше 600 запросов в минуту на ключ. Заголовок <code>Retry-After</code> подскажет, сколько подождать.</td></tr>
+                </tbody>
+            </table>
+            <p>Старые письма со временем удаляются: сервис хранит ограниченный объём почты и при его превышении убирает самые старые. Сохраняйте у себя то, что нужно надолго.</p>
+        </section>
+
+        <section id="examples">
+            <h2>Примеры кода</h2>
+            <h3>Python</h3>
+            <p>Нужна библиотека <code>requests</code>.</p>
+            <pre><code>import time
+import requests
+
+API_URL = "{{ base_url }}/api/v1"
+HEADERS = {"Authorization": "Bearer mdk_ваш_ключ"}
+
+
+def server_time():
+    response = requests.get(f"{API_URL}/folders", headers=HEADERS, timeout=15)
+    response.raise_for_status()
+    return response.json()["server_time"]
+
+
+def wait_for_code(address, since, timeout=120):
+    """Ждёт письмо на адрес. Возвращает код или ссылку, по таймауту None."""
+    deadline = time.time() + timeout
+    while time.time() &lt; deadline:
+        response = requests.get(
+            f"{API_URL}/messages",
+            headers=HEADERS,
+            params={"address": address, "since": since, "limit": 1},
+            timeout=15,
+        )
+        response.raise_for_status()
+        messages = response.json()["messages"]
+        if messages:
+            return messages[0]["code"] or messages[0]["link"]
+        time.sleep(3)
+    return None
+
+
+since = server_time()
+# ... здесь софт просит сайт отправить код ...
+print(wait_for_code("kayla2@purelogic.help", since))</code></pre>
+
+            <h3>JavaScript (Node.js 18+)</h3>
+            <pre><code>const API_URL = "{{ base_url }}/api/v1";
+const HEADERS = { Authorization: "Bearer mdk_ваш_ключ" };
+
+async function get(path, params = {}) {
+  const url = `${API_URL}${path}?${new URLSearchParams(params)}`;
+  const response = await fetch(url, { headers: HEADERS });
+  if (!response.ok) throw new Error(`API: ${response.status} ${await response.text()}`);
+  return response.json();
+}
+
+async function waitForCode(address, since, timeoutMs = 120000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() &lt; deadline) {
+    const { messages } = await get("/messages", { address, since, limit: 1 });
+    if (messages.length) return messages[0].code || messages[0].link;
+    await new Promise(resolve => setTimeout(resolve, 3000));
+  }
+  return null;
+}
+
+const { server_time: since } = await get("/folders");
+// ... здесь софт просит сайт отправить код ...
+console.log(await waitForCode("kayla2@purelogic.help", since));</code></pre>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='scripts/docs.js') }}"></script>
+</body>
+</html>

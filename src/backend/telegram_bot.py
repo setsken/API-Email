@@ -9,7 +9,6 @@ import time
 import requests
 import config
 from . import admin_store
-from .code_extractor import extract_link
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +47,7 @@ NOT_LINKED = (
 NO_FOLDERS = "Этой группе пока не назначены папки. Отметьте их в админке, в разделе Telegram."
 
 _lock = threading.Lock()
-_link_codes = {}      # code -> expiry time
+_link_codes = {}      # code -> {"expires", "owner": the panel user who asked for it}
 _link_failures = {}   # chat id -> (wrong attempts, time of the first one)
 _pending_adds = {}    # token -> {"chat", "address", "note", "expires"}
 _awaiting_address = {}  # (chat id, user id) -> expiry, after a bare /add
@@ -146,33 +145,37 @@ def start():
 
     threading.Thread(target=setup, daemon=True).start()
 
-# Status for the admin panel
-def status(state: dict) -> dict:
+# Status for the admin panel. The technical details are only for the owner of the service
+def status(state: dict, is_owner: bool = True) -> dict:
     info = bot_info()
-    return {
-        "configured": enabled(),
-        "bot": info["username"],
-        # None while registration is still running after a restart
-        "webhook": info["webhook"] if config.PUBLIC_URL else False,
-        "webhook_error": info["webhook_error"] if config.PUBLIC_URL else "не известен адрес сайта (RAILWAY_PUBLIC_DOMAIN или PUBLIC_URL)",
-        "last_update": info["last_update"],
-        "last_error": info["last_error"],
-        "api_url": config.TELEGRAM_API_URL,
-        "chats": state["telegram_chats"],
-    }
+    result = {"configured": enabled(), "bot": info["username"]}
 
-# A one-time code the admin gives to a group: "/link 1234-5678"
-def new_link_code() -> str:
+    if is_owner:
+        result.update({
+            # None while registration is still running after a restart
+            "webhook": info["webhook"] if config.PUBLIC_URL else False,
+            "webhook_error": info["webhook_error"] if config.PUBLIC_URL else "не известен адрес сайта (RAILWAY_PUBLIC_DOMAIN или PUBLIC_URL)",
+            "last_update": info["last_update"],
+            "last_error": info["last_error"],
+            "api_url": config.TELEGRAM_API_URL,
+        })
+
+    return result
+
+# A one-time code that links a group for this panel user (None for the owner
+# of the service): the group sends "/link 1234-5678"
+def new_link_code(owner: str = None) -> str:
     code = f"{secrets.randbelow(10**8):08d}"
     with _lock:
         now = time.time()
-        for old, expires in list(_link_codes.items()):
-            if expires < now:
+        for old, record in list(_link_codes.items()):
+            if record["expires"] < now:
                 del _link_codes[old]
-        _link_codes[code] = now + LINK_CODE_TTL
+        _link_codes[code] = {"expires": now + LINK_CODE_TTL, "owner": owner}
     return f"{code[:4]}-{code[4:]}"
 
-def _use_link_code(chat_id: int, code: str) -> bool:
+# Uses up a code. Returns its record, or None if the code doesn't work
+def _use_link_code(chat_id: int, code: str):
     code = re.sub(r"\D", "", code)
     with _lock:
         now = time.time()
@@ -180,15 +183,15 @@ def _use_link_code(chat_id: int, code: str) -> bool:
         if now - since > LINK_CODE_TTL:
             failures, since = 0, now
         if failures >= LINK_MAX_FAILURES:
-            return False
+            return None
 
-        expires = _link_codes.pop(code, None)
-        if expires and expires >= now:
+        record = _link_codes.pop(code, None)
+        if record and record["expires"] >= now:
             _link_failures.pop(chat_id, None)
-            return True
+            return record
 
         _link_failures[chat_id] = (failures + 1, since)
-        return False
+        return None
 
 # Folders a linked chat may use, in the order they were created
 def _chat_folders(chat: dict, state: dict) -> list:
@@ -285,12 +288,13 @@ def _cmd_link(chat: dict, linked, args: str):
         _send(chat_id, "Эта группа уже привязана.")
         return
 
-    if not _use_link_code(chat_id, args):
+    link_code = _use_link_code(chat_id, args)
+    if not link_code:
         _send(chat_id, "Код не подошёл или устарел. Получите новый в админке: кнопка «Telegram» → «Привязать группу».")
         return
 
     title = chat.get("title") or chat.get("username") or chat.get("first_name") or str(chat_id)
-    admin_store.link_chat(chat_id, title)
+    admin_store.link_chat(chat_id, title, link_code["owner"])
     _send(chat_id, "✅ Группа привязана. Теперь отметьте в админке, какие папки ей доступны: "
                    "коды с адресов этих папок будут приходить сюда.\n\n" + COMMAND_HELP)
 
@@ -352,7 +356,9 @@ def _add_to_folder(chat_id: int, address: str, note: str, folder_id: str) -> str
     if not folder:
         return "⚠️ Эта папка больше не доступна группе."
 
-    moved, error = admin_store.add_address(address, note, folder_id, allowed_folders=set(chat["folders"]))
+    # a user's group can't take an address the owner keeps outside of folders
+    moved, error = admin_store.add_address(address, note, folder_id, allowed_folders=set(chat["folders"]),
+                                           take_unfoldered=chat.get("owner") is None)
     if error:
         return "⚠️ " + _esc(error)
     if moved:
@@ -445,7 +451,7 @@ def notify_email(email: dict):
         return
 
     code = email.get("Code")
-    link = None if code else extract_link(email.get("Subject"), email.get("Body"))
+    link = email.get("Link")
     if not code and not link:
         return
 

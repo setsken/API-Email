@@ -1,0 +1,222 @@
+/* the API documentation page */
+.docs {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+}
+
+.docs-nav {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    height: 100vh;
+    height: 100dvh;
+    padding: 1.5rem 1rem;
+    overflow-y: auto;
+    background-color: var(--surface);
+    border-right: 1px solid var(--border);
+}
+
+.docs-nav a {
+    padding: 0.35rem 0.6rem;
+    border-radius: var(--radius-sm);
+    color: var(--muted);
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.docs-nav a:hover {
+    background-color: var(--surface-2);
+    color: var(--text);
+}
+
+.docs-nav .docs-brand {
+    margin-bottom: 0.75rem;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.docs-brand span {
+    color: var(--primary-text);
+}
+
+.docs-main {
+    width: 100%;
+    max-width: 800px;
+    padding: 2.5rem 2rem 5rem;
+}
+
+.docs-main h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.lead {
+    margin-top: 0.5rem;
+    color: var(--muted);
+    font-size: 1.05rem;
+}
+
+.docs-main section {
+    margin-top: 2.75rem;
+    scroll-margin-top: 1.5rem;
+}
+
+.docs-main h2 {
+    margin-bottom: 0.75rem;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.docs-main h3 {
+    margin: 1.5rem 0 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.docs-main p,
+.docs-main li {
+    color: var(--text);
+    font-size: 0.95rem;
+}
+
+.docs-main p {
+    margin-bottom: 0.75rem;
+}
+
+.docs-main ol {
+    margin: 0 0 0.75rem 1.25rem;
+}
+
+.docs-main li {
+    margin-bottom: 0.35rem;
+}
+
+.method {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    background-color: var(--primary-soft);
+    border-radius: var(--radius-sm);
+    color: var(--primary-text);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    vertical-align: 0.1em;
+}
+
+.docs-main h2:has(.method) {
+    font-family: var(--mono);
+    font-size: 1.15rem;
+}
+
+.docs-main code {
+    font-family: var(--mono);
+    font-size: 0.85em;
+}
+
+.docs-main :not(pre) > code {
+    padding: 0.1em 0.35em;
+    background-color: var(--surface-2);
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.docs-main td :not(pre) > code,
+.docs-main td code {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.code-block {
+    position: relative;
+    margin-bottom: 0.875rem;
+}
+
+.docs-main pre {
+    padding: 0.875rem 1rem;
+    overflow-x: auto;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    line-height: 1.55;
+}
+
+.copy-code {
+    position: absolute;
+    top: 0.45rem;
+    right: 0.45rem;
+    padding: 0.2rem 0.55rem;
+    background-color: var(--surface-3);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--muted);
+    font-size: 0.75rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.code-block:hover .copy-code,
+.copy-code:focus-visible {
+    opacity: 1;
+}
+
+.copy-code.copied {
+    color: var(--success);
+}
+
+.docs-main table {
+    width: 100%;
+    margin-bottom: 0.875rem;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.docs-main th {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border-strong);
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-align: left;
+}
+
+.docs-main td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+}
+
+@media (max-width: 760px) {
+    .docs {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .docs-nav {
+        position: static;
+        flex-direction: row;
+        flex-wrap: wrap;
+        height: auto;
+        padding: 0.75rem;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .docs-nav .docs-brand {
+        width: 100%;
+        margin-bottom: 0.25rem;
+    }
+
+    .docs-main {
+        padding: 1.5rem 1rem 4rem;
+    }
+
+    .copy-code {
+        opacity: 1;
+    }
+}

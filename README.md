@@ -172,8 +172,8 @@ Edit .env to change these or set environment variables if you are using docker. 
 | `DOMAINS`             | Comma-separated list of domains (overrides `DOMAIN`). |
 | `RESEND_API_KEY`      | Resend API key, used to fetch received email bodies.  |
 | `RESEND_WEBHOOK_SECRET` | Optional. Signing secret of the Resend webhook (`whsec_...`). When set, webhooks without a valid signature are rejected. |
-| `DATA_DIR`            | Folder for `inbox.json` and the admin list. Defaults to the Railway volume (`RAILWAY_VOLUME_MOUNT_PATH`) or the current folder. |
-| `ADMIN_PASSWORD`      | Password for the admin panel at `/admin`. The panel is disabled while it is empty. |
+| `DATA_DIR`            | Folder for the email database and the admin data. Defaults to the Railway volume (`RAILWAY_VOLUME_MOUNT_PATH`) or the current folder. |
+| `ADMIN_PASSWORD`      | Password of the owner of the admin panel at `/admin`. The panel is disabled while it is empty. |
 | `SECRET_KEY`          | Optional. Signs the admin session cookie; derived from `ADMIN_PASSWORD` if not set. |
 | `TELEGRAM_BOT_TOKEN`  | Optional. Token from @BotFather; turns on the Telegram bot. |
 | `PUBLIC_URL`          | Optional. Public address of the site for the Telegram webhook; on Railway `RAILWAY_PUBLIC_DOMAIN` is used. |
@@ -181,11 +181,21 @@ Edit .env to change these or set environment variables if you are using docker. 
 
 ## Admin panel
 
-Open `/admin` and log in with `ADMIN_PASSWORD`. Add the addresses you want to watch (they must be on one of your `DOMAINS`), and every email sent to them shows up in one feed on that page, refreshed every 5 seconds. One-time codes are detected in the subject and body and shown next to each email; click a code to copy it. Click an address to see only its emails. The ✕ next to an email deletes it for good (it disappears from the public inbox too).
+Open `/admin` and log in with a password: `ADMIN_PASSWORD` for the owner, or a password the owner gave to a user.
 
-Addresses can be grouped into folders: create one with "+ Папка", and the tabs at the top switch between all addresses and a single folder, showing only the emails of that folder's addresses. An address added while a folder is open goes into it; the dropdown on each address moves it to another folder. Deleting a folder keeps its addresses, just without a folder. The open folder is kept in the page URL (`/admin#folder=...`), so it survives a reload.
+The panel has two columns: addresses on the left (with search and their own scrolling), emails on the right, newest first and refreshed every 5 seconds. One-time codes and verification links are detected and shown in front of each email; click a code to copy it. Click an address to see only its emails. The trash icon next to an email deletes it for good. When the panel is narrow (a phone, the split screen) the columns become tabs.
 
-The public inbox keeps working as before: watched addresses are just collected in the admin panel as well. The `/debug/*` endpoints also require the admin login.
+Addresses are grouped into folders: the tabs at the top switch between all addresses and a single folder. An address added while a folder is open goes into it; the menu on each address changes its note, moves it or removes it. Deleting a folder keeps its addresses, just without a folder.
+
+The switch in the top bar changes the view: **Панель**, **Сплит** (temporary mail on the left, the panel on the right) and **Почта** (temporary mail only).
+
+**Users.** The owner creates users under **Пользователи**, gives each a password and chooses their folders. A user sees only those folders with their addresses and emails, and can add addresses, link Telegram groups and create API keys, all limited to them. Only the owner creates folders. There are no logins: the password alone tells who is logging in, so passwords must be unique.
+
+**Privacy.** Addresses listed in the panel are private: for anyone without access to their folder, the public temporary mail page shows them as an empty inbox. Other addresses work as usual. The `/debug/*` endpoints require the owner's login.
+
+## API for external programs
+
+Programs can read codes and verification links from chosen folders with an API key, created in the panel under **API**. The API is read-only. See the `/api/docs` page of your installation, or [docs/API.md](docs/API.md).
 
 ## Telegram bot
 

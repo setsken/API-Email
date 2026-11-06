@@ -4,72 +4,132 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex">
-    <title>Maildrop — админка</title>
+    <title>Maildrop — панель</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/forms.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/admin.css') }}">
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='resources/favicon.ico') }}">
 </head>
-<body>
-    <div class="container">
-        <header class="header admin-header">
-            <h1>
-                <img src="{{ url_for('static', filename='resources/mail-icon.svg') }}" alt="Mail Icon">
-                admin
-            </h1>
-            <div class="header-actions">
-                <button type="button" id="tg-toggle" class="btn btn-secondary">Telegram</button>
-                <form method="post" action="{{ url_for('admin.logout') }}">
-                    <button type="submit" class="btn btn-secondary">Выйти</button>
-                </form>
-            </div>
-        </header>
+<body class="app no-anim" data-view="panel">
+    <header class="topbar">
+        <a class="brand" href="{{ url_for('admin.index') }}">
+            <span data-icon="mail"></span>
+            <span class="brand-name">maildrop</span>
+        </a>
 
-        <section id="tg-panel" class="email-panel" hidden>
-            <div class="panel-header">
-                <h2>Telegram</h2>
-                <button type="button" id="tg-link" class="btn btn-primary btn-small" hidden>Привязать группу</button>
-            </div>
-            <p id="tg-status" class="tg-status"></p>
-            <p id="tg-diag" class="tg-diag"></p>
-            <div id="tg-code-box" class="tg-code-box" hidden>
-                <p>1. Добавьте бота <b id="tg-bot-name"></b> в группу. Права администратора не обязательны.</p>
-                <p>2. Отправьте в группу эту команду, она действует 10 минут:</p>
-                <button type="button" id="tg-code" class="code-chip" title="Скопировать команду"></button>
-                <p>3. Группа появится ниже. Отметьте папки, коды с адресов которых она будет получать.</p>
-            </div>
-            <ul id="tg-chats" class="tg-chats"></ul>
+        <div class="view-switch" role="group" aria-label="Вид">
+            <span class="view-thumb"></span>
+            <button type="button" data-view-button="panel" title="Панель"><span data-icon="inbox"></span><span class="label">Панель</span></button>
+            <button type="button" data-view-button="split" title="Сплит: временная почта и панель рядом"><span data-icon="columns"></span><span class="label">Сплит</span></button>
+            <button type="button" data-view-button="mail" title="Временная почта на весь экран"><span data-icon="at"></span><span class="label">Почта</span></button>
+        </div>
+
+        <div class="topbar-actions">
+            <button type="button" class="top-btn" id="open-telegram" title="Telegram"><span data-icon="send"></span><span class="label">Telegram</span></button>
+            <button type="button" class="top-btn" id="open-keys" title="API-ключи"><span data-icon="key"></span><span class="label">API</span></button>
+            {% if boot.me.is_owner %}
+            <button type="button" class="top-btn" id="open-users" title="Пользователи"><span data-icon="users"></span><span class="label">Пользователи</span></button>
+            {% endif %}
+            <span class="me" title="Вы вошли как {{ boot.me.name }}">{{ boot.me.name }}</span>
+            <form method="post" action="{{ url_for('admin.logout') }}">
+                <button type="submit" class="top-btn" title="Выйти"><span data-icon="logout"></span></button>
+            </form>
+        </div>
+    </header>
+
+    <div class="panes">
+        <section class="pane pane-mail" aria-label="Временная почта">
+            <iframe id="mail-frame" title="Временная почта"></iframe>
         </section>
 
-        <nav id="folder-bar" class="folder-bar"></nav>
+        <section class="pane pane-panel" aria-label="Панель">
+            <div class="panel-inner">
+                <nav id="folder-bar" class="folder-bar" aria-label="Папки"></nav>
 
-        <section class="email-panel">
-            <div class="panel-header">
-                <h2 id="panel-title">Отслеживаемые адреса</h2>
-                <div id="folder-actions" class="folder-actions" hidden>
-                    <button type="button" id="folder-rename" class="btn btn-secondary btn-small">Переименовать</button>
-                    <button type="button" id="folder-delete" class="btn btn-secondary btn-small btn-remove">Удалить папку</button>
+                <div class="panel-tabs" role="group" aria-label="Раздел">
+                    <button type="button" data-tab="feed">Письма</button>
+                    <button type="button" data-tab="addresses">Адреса <span id="tab-address-count" class="tab-count"></span></button>
+                </div>
+
+                <div class="workspace" id="workspace" data-tab="feed">
+                    <aside class="col col-addresses">
+                        <div class="col-head">
+                            <h2 id="panel-title">Все адреса</h2>
+                            <span id="address-total" class="head-count"></span>
+                            <span class="grow"></span>
+                            <div id="folder-actions" class="head-actions" hidden>
+                                <button type="button" id="folder-rename" class="icon-btn" title="Переименовать папку"><span data-icon="edit"></span></button>
+                                <button type="button" id="folder-delete" class="icon-btn danger" title="Удалить папку"><span data-icon="trash"></span></button>
+                            </div>
+                        </div>
+
+                        <form id="add-form" class="add-form" autocomplete="off">
+                            <div class="add-row">
+                                <input type="text" id="add-address" class="form-control mono" spellcheck="false" aria-label="Новый адрес" required>
+                                <button type="submit" class="btn btn-primary add-submit" title="Добавить адрес"><span data-icon="plus"></span></button>
+                            </div>
+                            <div class="add-more">
+                                <div class="add-more-inner">
+                                    <input type="text" id="add-note" class="form-control" placeholder="Заметка (необязательно)" maxlength="100" aria-label="Заметка">
+                                    <select id="add-folder" class="form-control" aria-label="Папка"></select>
+                                </div>
+                            </div>
+                        </form>
+
+                        <div class="search-box">
+                            <span data-icon="search"></span>
+                            <input type="search" id="address-search" placeholder="Поиск по адресам и заметкам" aria-label="Поиск по адресам">
+                        </div>
+
+                        <ul id="address-list" class="scroll-list"></ul>
+                        <p id="address-placeholder" class="empty" hidden></p>
+                    </aside>
+
+                    <main class="col col-feed">
+                        <div class="col-head">
+                            <h2>Письма</h2>
+                            <button type="button" id="filter-chip" class="filter-chip" title="Показать письма всех адресов" hidden>
+                                <span class="filter-text"></span><span data-icon="x"></span>
+                            </button>
+                            <span class="grow"></span>
+                            <label class="switch" title="Скрыть письма без кода и без ссылки">
+                                <input type="checkbox" id="useful-only">
+                                <span class="switch-track"></span>
+                                <span class="switch-label">Только с кодом</span>
+                            </label>
+                        </div>
+
+                        <ul id="feed-list" class="scroll-list"></ul>
+                        <p id="feed-placeholder" class="empty" hidden></p>
+                    </main>
                 </div>
             </div>
-            <form id="add-form" class="add-form">
-                <input type="text" id="add-address" class="form-control" placeholder="name@{{ domains[0] }}" spellcheck="false" required>
-                <input type="text" id="add-note" class="form-control" placeholder="Заметка (необязательно)" maxlength="100">
-                <button type="submit" class="btn btn-primary">Добавить</button>
-            </form>
-            <p id="add-error" class="form-error"></p>
-            <ul id="address-list" class="address-list"></ul>
-            <p id="address-placeholder" class="admin-placeholder"></p>
         </section>
-
-        <main class="inbox-section">
-            <div class="inbox-header">
-                <h2>Письма</h2>
-                <button id="filter-reset" class="btn btn-secondary" hidden>Показать все адреса</button>
-            </div>
-            <ul id="feed-list"></ul>
-            <p id="feed-placeholder" class="admin-placeholder"></p>
-        </main>
     </div>
+
+    <div id="drawer-backdrop" class="drawer-backdrop"></div>
+    <aside id="drawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" inert>
+        <header class="drawer-head">
+            <h2 id="drawer-title"></h2>
+            <button type="button" id="drawer-close" class="icon-btn" title="Закрыть"><span data-icon="x"></span></button>
+        </header>
+        <div id="drawer-body" class="drawer-body"></div>
+    </aside>
+
+    <div id="toasts" class="toasts" aria-live="polite"></div>
+
+    <script id="boot" type="application/json">{{ boot|tojson }}</script>
+    <script src="{{ url_for('static', filename='scripts/email_frame.js') }}"></script>
+    <script src="{{ url_for('static', filename='scripts/admin_ui.js') }}"></script>
+    <script src="{{ url_for('static', filename='scripts/admin_panel.js') }}"></script>
+    <script src="{{ url_for('static', filename='scripts/admin_folders.js') }}"></script>
+    <script src="{{ url_for('static', filename='scripts/admin_addresses.js') }}"></script>
+    <script src="{{ url_for('static', filename='scripts/admin_feed.js') }}"></script>
+    <script src="{{ url_for('static', filename='scripts/admin_views.js') }}"></script>
+    <script src="{{ url_for('static', filename='scripts/admin_drawer.js') }}"></script>
+    <script src="{{ url_for('static', filename='scripts/admin_telegram.js') }}"></script>
+    <script src="{{ url_for('static', filename='scripts/admin_keys.js') }}"></script>
+    <script src="{{ url_for('static', filename='scripts/admin_users.js') }}"></script>
     <script src="{{ url_for('static', filename='scripts/admin.js') }}"></script>
 </body>
 </html>

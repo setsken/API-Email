@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ 'ru' if embed else 'en' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,54 +14,55 @@
     <meta property="og:description" content="maildrop is a free disposable email service." />
     <meta property="og:image" content="/static/resources/app.png" />
 </head>
-<body>
+<body class="temp-page{{ ' embed' if embed }}">
     <div class="container">
         <header class="header">
             {% if admin_enabled %}
             <a href="{{ url_for('admin.index') }}" class="btn btn-secondary admin-link" title="Admin panel">
-                <img src="{{ url_for('static', filename='resources/lock-icon.svg') }}" alt="Lock Icon">
+                <img src="{{ url_for('static', filename='resources/lock-icon.svg') }}" alt="">
                 <span class="button-text">Admin</span>
             </a>
             {% endif %}
             <h1>
-                <img src="{{ url_for('static', filename='resources/mail-icon.svg') }}" alt="Mail Icon">
+                <img src="{{ url_for('static', filename='resources/mail-icon.svg') }}" alt="">
                 maildrop
             </h1>
             <p>A simple self hostable email inbox.</p>
         </header>
         <section class="email-panel">
             <div class="email-compose">
-                <input type="text" id="email-name" placeholder="username" spellcheck="false">
-                <select id="domain-select" class="domain-select" title="Choose domain">
+                <input type="text" id="email-name" placeholder="{{ 'имя' if embed else 'username' }}" spellcheck="false" autocomplete="off">
+                <select id="domain-select" class="domain-select" title="{{ 'Домен' if embed else 'Choose domain' }}">
                 </select>
             </div>
             <div class="action-buttons">
                 <button id="random-btn" class="btn btn-primary">
-                    <img src="{{ url_for('static', filename='resources/random-icon.svg') }}" alt="Random Icon">
-                    <span class="button-text">Random Name</span>
+                    <img src="{{ url_for('static', filename='resources/random-icon.svg') }}" alt="">
+                    <span class="button-text">{{ 'Случайное имя' if embed else 'Random Name' }}</span>
                 </button>
                 <button id="copy-btn" class="btn btn-secondary">
-                    <img src="{{ url_for('static', filename='resources/copy-icon.svg') }}" alt="Copy Icon">
-                    <span class="button-text">Copy Email</span>
+                    <img src="{{ url_for('static', filename='resources/copy-icon.svg') }}" alt="">
+                    <span class="button-text">{{ 'Копировать' if embed else 'Copy Email' }}</span>
                 </button>
-                <button id="refresh-btn" class="btn btn-secondary" title="Refresh Inbox">
-                    <img src="{{ url_for('static', filename='resources/refresh-icon.svg') }}" alt="Refresh Icon">
-                    <span class="button-text">Refresh</span>
+                <button id="refresh-btn" class="btn btn-secondary" title="{{ 'Обновить' if embed else 'Refresh Inbox' }}">
+                    <img src="{{ url_for('static', filename='resources/refresh-icon.svg') }}" alt="">
+                    <span class="button-text">{{ 'Обновить' if embed else 'Refresh' }}</span>
                 </button>
             </div>
         </section>
 
         <main class="inbox-section">
             <div class="inbox-header">
-                <h2>Your Inbox</h2>
+                <h2>{{ 'Входящие' if embed else 'Your Inbox' }}</h2>
             </div>
             <ul id="inbox-list"></ul>
             <div id="inbox-placeholder">
-                <p>Your emails will appear here. Refresh to check for new mail.</p>
+                <p>{{ 'Письма появятся здесь автоматически.' if embed else 'Your emails will appear here automatically.' }}</p>
             </div>
         </main>
     </div>
     <script src="{{ url_for('static', filename='scripts/nickname_engine.js') }}"></script>
+    <script src="{{ url_for('static', filename='scripts/email_frame.js') }}"></script>
     <script src="{{ url_for('static', filename='scripts/api.js') }}"></script>
     <script src="{{ url_for('static', filename='scripts/main.js') }}"></script>
 </body>

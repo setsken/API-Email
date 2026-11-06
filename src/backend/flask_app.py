@@ -1,6 +1,6 @@
 from flask import Flask
 import urllib3.util.connection
-from .routes import pages, api, admin, telegram
+from .routes import pages, api, admin, telegram, public_api
 from . import telegram_bot
 import config
 
@@ -14,11 +14,13 @@ app = Flask(__name__, template_folder='../frontend/templates', static_folder='..
 # The admin login lives in a signed session cookie
 app.secret_key = config.SECRET_KEY
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = config.PUBLIC_URL.startswith('https://')
 
 app.register_blueprint(pages.bp) # load the blueprint for the all of the main web page routes
 app.register_blueprint(api.bp) # load the blueprint for the all of the api routes
 app.register_blueprint(admin.bp) # load the blueprint for the admin panel
 app.register_blueprint(telegram.bp) # load the blueprint for the telegram bot webhook
+app.register_blueprint(public_api.bp) # load the blueprint for the API used by external programs
 
 # Register the Telegram webhook if a bot token is set
 telegram_bot.start()
