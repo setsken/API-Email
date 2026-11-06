@@ -10,3 +10,6 @@ admin_addresses.json
 admin_addresses.json.tmp
 debug_api.log
 pictures/
+inbox.db
+inbox.db-journal
+inbox.json.migrated

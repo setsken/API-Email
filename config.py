@@ -13,6 +13,8 @@ DATA_DIR = os.getenv("DATA_DIR") or os.getenv("RAILWAY_VOLUME_MOUNT_PATH") or ".
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # Relative file names are placed inside DATA_DIR, absolute ones are used as is
+INBOX_DB_FILE = os.path.join(DATA_DIR, os.getenv("INBOX_DB_FILE", "inbox.db"))
+# Old JSON inbox, only read once to move its emails into the database
 INBOX_FILE_NAME = os.path.join(DATA_DIR, os.getenv("INBOX_FILE_NAME", "inbox.json"))
 ADMIN_LIST_FILE = os.path.join(DATA_DIR, os.getenv("ADMIN_LIST_FILE", "admin_addresses.json"))
 MAX_INBOX_SIZE = int(os.getenv("MAX_INBOX_SIZE", 100000000))

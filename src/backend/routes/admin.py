@@ -2,7 +2,6 @@ from flask import Blueprint, render_template, request, jsonify, session, redirec
 import time
 import config
 from .. import inbox_handler, admin_store, auth, telegram_bot
-from ..code_extractor import extract_code
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -50,27 +49,23 @@ def feed():
     only_address = request.args.get('address', '').strip().lower()
 
     state = admin_store.read_state()
-    inbox = inbox_handler.read_inbox()
+    counts = inbox_handler.count_emails([entry['address'] for entry in state['addresses']])
 
     addresses = []
-    emails = []
+    shown = []
     for entry in state['addresses']:
-        received = inbox.get(entry['address'], [])
-        addresses.append({**entry, "folder": entry.get('folder'), "count": len(received)})
+        addresses.append({**entry, "folder": entry.get('folder'), "count": counts.get(entry['address'], 0)})
 
         if folder and entry.get('folder') != folder:
             continue
         if only_address and entry['address'] != only_address:
             continue
-        emails.extend(received)
+        shown.append(entry['address'])
 
     addresses.sort(key=lambda a: a.get('added', 0), reverse=True)
-    emails.sort(key=lambda e: e.get('Timestamp', 0), reverse=True)
-    emails = emails[:FEED_LIMIT]
 
-    for email in emails:
-        email['Key'] = inbox_handler.email_key(email)
-        email['Code'] = extract_code(email.get('Subject', ''), email.get('Body', ''))
+    # without bodies: the page asks for a body when an email is opened
+    emails = inbox_handler.list_emails(shown, FEED_LIMIT)
 
     return jsonify({
         "folders": state['folders'],
@@ -127,6 +122,17 @@ def delete_folder(folder_id):
         return jsonify({"error": "Папка не найдена"}), 404
     return jsonify({"status": "ok"}), 200
 
+# The body of one email, requested when it's opened in the feed
+@bp.route('/api/emails/<email_id>')
+@auth.admin_required
+def get_email(email_id):
+    email = inbox_handler.get_email(email_id)
+
+    # only emails of watched addresses can be read from here
+    if not email or not any(e['address'] == email['To'] for e in admin_store.read_state()['addresses']):
+        return jsonify({"error": "Письмо не найдено"}), 404
+    return jsonify({"Body": email['Body']}), 200
+
 # Deletes one email for good, so it's gone from the public inbox too
 @bp.route('/api/emails', methods=['DELETE'])
 @auth.admin_required
@@ -138,7 +144,7 @@ def delete_email():
     if not any(e['address'] == address for e in admin_store.read_state()['addresses']):
         return jsonify({"error": "Адреса нет в списке"}), 404
 
-    if not inbox_handler.delete_email(address, str(data.get('key', ''))):
+    if not inbox_handler.delete_email(address, str(data.get('id', ''))):
         return jsonify({"error": "Письмо не найдено"}), 404
     return jsonify({"status": "ok"}), 200
 

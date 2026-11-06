@@ -38,6 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let feedSignature = '';
     let seenKeys = null;          // emails from the previous poll, to highlight new ones
     const openKeys = new Set();   // expanded emails stay open across re-renders
+    const bodies = new Map();     // bodies of the emails opened so far, by email id
     let telegram = null;          // bot status and linked groups
     let telegramSignature = '';
     let linkCodeTimer = null;
@@ -444,8 +445,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!confirm(`Удалить письмо «${email.Subject}» от ${email.From}?\nОно пропадёт и из временной почты.`)) return;
 
         try {
-            await api('DELETE', '/admin/api/emails', { address: email.To, key: email.Key });
+            await api('DELETE', '/admin/api/emails', { address: email.To, id: email.Id });
             openKeys.delete(emailKey(email));
+            bodies.delete(email.Id);
         } catch (e) {
             alert(e.message);
         }
@@ -602,7 +604,7 @@ document.addEventListener("DOMContentLoaded", () => {
         summary.addEventListener('click', () => {
             if (item.classList.toggle('open')) {
                 openKeys.add(key);
-                iframe.srcdoc = BODY_PREFIX + email.Body;
+                showBody(email, iframe);
             } else {
                 openKeys.delete(key);
             }
@@ -610,10 +612,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (openKeys.has(key)) {
             item.classList.add('open');
-            iframe.srcdoc = BODY_PREFIX + email.Body;
+            showBody(email, iframe);
         }
 
         return item;
+    }
+
+    // the feed comes without bodies, so load one the first time its email is opened
+    async function showBody(email, iframe) {
+        try {
+            if (!bodies.has(email.Id)) {
+                const data = await api('GET', `/admin/api/emails/${encodeURIComponent(email.Id)}`);
+                bodies.set(email.Id, data.Body);
+            }
+            iframe.srcdoc = BODY_PREFIX + bodies.get(email.Id);
+        } catch (e) {
+            console.error('Failed to load email', e);
+        }
     }
 
     // refresh the "x min ago" labels without rebuilding the feed
@@ -623,9 +638,8 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // the server gives every email a key that is unique within its inbox
     function emailKey(email) {
-        return `${email.To}|${email.Key}`;
+        return `${email.To}|${email.Id}`;
     }
 
     // copy text and flash the button; with a label the button shows it, then the text again

@@ -164,8 +164,8 @@ Edit .env to change these or set environment variables if you are using docker. 
 | `FLASK_PORT`          | The port for the website.                             |
 | `SMTP_HOST`           | The host for the SMTP server.                         |
 | `SMTP_PORT`           | The port for the SMTP server.                         |
-| `INBOX_FILE_NAME`     | The file where emails are stored.                     |
-| `MAX_INBOX_SIZE`      | The maximum size of the inbox.                        |
+| `INBOX_DB_FILE`       | The SQLite file where emails are stored.              |
+| `MAX_INBOX_SIZE`      | The maximum size of stored emails, in bytes. Past it the oldest emails are dropped. |
 | `PROTECTED_ADDRESSES` | A regex for inboxes that require a password.          |
 | `PASSWORD`            | The password for protected inboxes.                   |
 | `DOMAIN`              | The domain to be used for generating email addresses. |

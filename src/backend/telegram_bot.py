@@ -9,7 +9,7 @@ import time
 import requests
 import config
 from . import admin_store
-from .code_extractor import extract_code, extract_link
+from .code_extractor import extract_link
 
 logger = logging.getLogger(__name__)
 
@@ -444,8 +444,8 @@ def notify_email(email: dict):
     if not chats:
         return
 
-    code = extract_code(email.get("Subject", ""), email.get("Body", ""))
-    link = None if code else extract_link(email.get("Body", ""))
+    code = email.get("Code")
+    link = None if code else extract_link(email.get("Subject"), email.get("Body"))
     if not code and not link:
         return
 

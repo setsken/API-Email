@@ -14,3 +14,6 @@ build/
 debug_api.log
 admin_addresses.json
 admin_addresses.json.tmp
+inbox.db
+inbox.db-journal
+inbox.json.migrated

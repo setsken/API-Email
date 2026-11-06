@@ -10,5 +10,10 @@ COPY . .
 
 EXPOSE 5000
 
-# Railway passes the port in $PORT; a shell is needed to expand it
-CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 1 --threads 8 --timeout 120 src.backend.flask_app:app"]
+# By default glibc keeps a separate memory pool per thread and rarely gives it
+# back to the system, which inflates the memory of a threaded server
+ENV MALLOC_ARENA_MAX=2
+
+# Railway passes the port in $PORT; a shell is needed to expand it.
+# A failed migration must not stop the server: the old file stays for the next start
+CMD ["sh", "-c", "python migrate_inbox.py; exec gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 1 --threads 8 --timeout 120 src.backend.flask_app:app"]

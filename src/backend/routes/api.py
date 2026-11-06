@@ -128,9 +128,7 @@ def get_inbox():
     if re.match(config.PROTECTED_ADDRESSES, addr) and password != config.PASSWORD:
         return jsonify({"error": "Unauthorized"}), 401
 
-    inbox = inbox_handler.read_inbox()
-    address_inbox = inbox.get(addr, [])
-    return jsonify(address_inbox), 200
+    return jsonify(inbox_handler.get_inbox(addr)), 200
 
 # Builds and saves the stored records for one received email.
 # Runs in a background thread so the webhook can return 200 immediately —

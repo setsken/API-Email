@@ -1,75 +1,156 @@
+import contextlib
 import json
-import re
 import os
-import threading
+import sqlite3
 import uuid
 import config
+from .code_extractor import extract_code
 
-# The server runs multiple threads, so the read-modify-write in recv_email
-# must not interleave or emails get lost
-_inbox_lock = threading.Lock()
+# All emails live in one SQLite file, and a request only reads the rows it needs.
+# They used to be in one JSON file that was loaded whole on every request and
+# every new email, which kept gigabytes of memory allocated on the server.
 
-# Reads the contents of the inbox.json file and returns it as a dictionary
-def read_inbox() -> dict:
+# body stays the last column: SQLite then doesn't walk through it to read the others
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS emails (
+    id TEXT PRIMARY KEY,
+    recipient TEXT NOT NULL,
+    sender TEXT,
+    subject TEXT,
+    timestamp INTEGER NOT NULL,
+    sent TEXT,
+    content_type TEXT,
+    code TEXT,
+    body TEXT
+);
+CREATE INDEX IF NOT EXISTS emails_recipient ON emails (recipient, timestamp);
+CREATE INDEX IF NOT EXISTS emails_timestamp ON emails (timestamp);
+"""
+
+_SUMMARY_COLUMNS = "id, recipient, sender, subject, timestamp, sent, content_type, code"
+
+# A short-lived connection per operation; SQLite takes care of concurrent threads
+@contextlib.contextmanager
+def _db():
+    conn = sqlite3.connect(config.INBOX_DB_FILE, timeout=30)
+    conn.row_factory = sqlite3.Row
     try:
-        with open(config.INBOX_FILE_NAME, "r") as f:
-            return json.load(f)
-    except:
-        return {}
+        with conn:
+            yield conn
+    finally:
+        conn.close()
 
-# Writes a dictionary to the inbox.json file
-def write_inbox(data: dict):
-    # Write to a temp file first so a concurrent reader never sees a partial file
-    tmp_name = config.INBOX_FILE_NAME + ".tmp"
-    with open(tmp_name, "w") as f:
-        json.dump(data, f, indent=4)
-    os.replace(tmp_name, config.INBOX_FILE_NAME)
+with _db() as _conn:
+    _conn.executescript(_SCHEMA)
 
-# Clears inbox if it exceeds maximum
-def check_inbox_size():
-    if not os.path.exists(config.INBOX_FILE_NAME):
-        return
+# A database row as the email dictionary the rest of the app and the API use
+def _to_email(row: sqlite3.Row) -> dict:
+    email = {
+        "Id": row["id"],
+        "From": row["sender"],
+        "To": row["recipient"],
+        "Subject": row["subject"],
+        "Timestamp": row["timestamp"],
+        "Sent": row["sent"],
+        "ContentType": row["content_type"],
+        "Code": row["code"],
+    }
+    if "body" in row.keys():
+        email["Body"] = row["body"]
+    return email
 
-    if os.path.getsize(config.INBOX_FILE_NAME) > config.MAX_INBOX_SIZE:
-        write_inbox({})
+def _insert(conn: sqlite3.Connection, email: dict):
+    conn.execute(
+        "INSERT OR IGNORE INTO emails (id, recipient, sender, subject, timestamp, sent, content_type, code, body)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (email["Id"], email["To"], email.get("From"), email.get("Subject"), email.get("Timestamp") or 0,
+         email.get("Sent"), email.get("ContentType"), email.get("Code"), email.get("Body")),
+    )
+
+# Drops the oldest tenth of the emails once the data exceeds the maximum.
+# Freed space in the file is reused, so the file stops growing at that size
+def _trim(conn: sqlite3.Connection):
+    page_size = conn.execute("PRAGMA page_size").fetchone()[0]
+    pages = conn.execute("PRAGMA page_count").fetchone()[0]
+    free = conn.execute("PRAGMA freelist_count").fetchone()[0]
+
+    if (pages - free) * page_size > config.MAX_INBOX_SIZE:
+        conn.execute("DELETE FROM emails WHERE id IN (SELECT id FROM emails ORDER BY timestamp"
+                     " LIMIT (SELECT COUNT(*) / 10 + 1 FROM emails))")
 
 # Adds a new email to the inbox
 def recv_email(email_json: dict):
-    recipient = email_json.get('To')
-
-    if not recipient:
+    if not email_json.get("To"):
         return
 
     # Lets the admin panel point at this exact email, e.g. to delete it
     email_json.setdefault("Id", uuid.uuid4().hex)
+    email_json["Code"] = extract_code(email_json.get("Subject"), email_json.get("Body"))
 
-    with _inbox_lock:
-        check_inbox_size()
-        inbox = read_inbox()
+    with _db() as conn:
+        _trim(conn)
+        _insert(conn, email_json)
 
-        if recipient not in inbox:
-            inbox[recipient] = []
+# All emails of one address with their bodies, oldest first
+def get_inbox(address: str) -> list:
+    with _db() as conn:
+        rows = conn.execute("SELECT * FROM emails WHERE recipient = ? ORDER BY timestamp, rowid", (address,)).fetchall()
+    return [_to_email(row) for row in rows]
 
-        inbox[recipient].append(email_json)
-        write_inbox(inbox)
+# The newest emails of these addresses without their bodies, newest first
+def list_emails(addresses: list, limit: int) -> list:
+    if not addresses:
+        return []
 
-# Identifies an email inside its inbox. Emails saved before Ids existed
-# fall back to their time, sender and subject
-def email_key(email: dict) -> str:
-    return email.get("Id") or f"{email.get('Timestamp')}|{email.get('From')}|{email.get('Subject')}"
+    marks = ",".join("?" * len(addresses))
+    with _db() as conn:
+        rows = conn.execute(
+            f"SELECT {_SUMMARY_COLUMNS} FROM emails WHERE recipient IN ({marks}) ORDER BY timestamp DESC, rowid DESC LIMIT ?",
+            (*addresses, limit),
+        ).fetchall()
+    return [_to_email(row) for row in rows]
+
+# How many emails each address has: {address: count}, addresses without emails left out
+def count_emails(addresses: list) -> dict:
+    if not addresses:
+        return {}
+
+    marks = ",".join("?" * len(addresses))
+    with _db() as conn:
+        rows = conn.execute(f"SELECT recipient, COUNT(*) FROM emails WHERE recipient IN ({marks}) GROUP BY recipient",
+                            addresses).fetchall()
+    return {row[0]: row[1] for row in rows}
+
+# One email with its body, or None
+def get_email(email_id: str):
+    with _db() as conn:
+        row = conn.execute("SELECT * FROM emails WHERE id = ?", (email_id,)).fetchone()
+    return _to_email(row) if row else None
 
 # Deletes one email from an inbox. Returns False if it was not found
-def delete_email(address: str, key: str) -> bool:
-    with _inbox_lock:
-        inbox = read_inbox()
-        emails = inbox.get(address, [])
+def delete_email(address: str, email_id: str) -> bool:
+    with _db() as conn:
+        return conn.execute("DELETE FROM emails WHERE id = ? AND recipient = ?", (email_id, address)).rowcount > 0
 
-        for i, email in enumerate(emails):
-            if email_key(email) == key:
-                del emails[i]
-                if not emails:
-                    del inbox[address]
-                write_inbox(inbox)
-                return True
+# Moves emails from the old inbox.json into the database, once. Run this outside
+# the server process (see migrate_inbox.py): loading the file takes a lot of memory
+def migrate_json_inbox() -> int:
+    if not os.path.exists(config.INBOX_FILE_NAME):
+        return 0
 
-    return False
+    with open(config.INBOX_FILE_NAME, "r", encoding="utf-8") as f:
+        inbox = json.load(f)
+
+    count = 0
+    with _db() as conn:
+        for address, emails in inbox.items():
+            for email in emails:
+                email["To"] = address
+                email.setdefault("Id", uuid.uuid4().hex)
+                email["Code"] = extract_code(email.get("Subject"), email.get("Body"))
+                _insert(conn, email)
+                count += 1
+
+    # the emails are in the database now; the file is kept as a backup
+    os.replace(config.INBOX_FILE_NAME, config.INBOX_FILE_NAME + ".migrated")
+    return count
